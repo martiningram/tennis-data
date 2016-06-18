@@ -1,18 +1,38 @@
 import re
 import json
 import urllib2
+import logging
 import pandas as pd
 
 from datetime import date
 from bs4 import BeautifulSoup
 
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+# Make sure we write to log
+fh = logging.FileHandler('scrape_log.log')
+fh.setLevel(logging.DEBUG)
+logger.addHandler(fh)
+
+
+class ScrapingException(Exception):
+    pass
+
 
 class MatchStatScraper(object):
+    """Scrapes match data from MatchStat.com."""
 
-    def __init__(self):
-        pass
+    def get_calendar_link(self, year):
+        """Helper function returning link to calendar site.
 
-    def get_calendar(self, year):
+        Args:
+            year (int): The year to get the link for.
+
+        Returns:
+            str: The link to the calendar for that year.
+        """
 
         cur_year = date.today().year
 
@@ -24,11 +44,23 @@ class MatchStatScraper(object):
             return 'https://matchstat.com/tennis/calendar/' + str(year)
 
     def get_tournament_links(self, year, t_type='atp'):
+        """Fetches links to the tournament result pages for the year and tour
+        given.
 
-        calendar = self.get_calendar(year)
+        Args:
+            year (int): The year to fetch tournament links for.
+            t_type (str): The tour to fetch tournament links for [either atp or
+                wta].
+
+        Returns:
+            pd.DataFrame: A DataFrame containing fields tournament_name,
+                start_date, tournament_link.
+        """
+
+        calendar_link = self.get_calendar_link(year)
 
         # Open calendar
-        page = urllib2.urlopen(calendar)
+        page = urllib2.urlopen(calendar_link)
         soup = BeautifulSoup(page, 'html.parser')
 
         # Find the links
@@ -60,11 +92,24 @@ class MatchStatScraper(object):
         return results
 
     def get_winner_loser(self, match_data):
+        """Extracts winner and loser link objects from the match data given.
+
+        Args:
+            match_data (BeautifulSoup object): The match data scraped for this
+                match.
+
+        Returns:
+            Pair[BeautifulSoup object, BeautifulSoup object]: The winner and
+            loser link objects.
+        """
 
         # Extract player names
         players = match_data.find_all('td', class_='player-name')
 
-        assert(len(players) == 2)
+        if len(players) != 2:
+
+            raise ScrapingException(
+                'Only found {} players; expecting 2.'.format(len(players)))
 
         winner = players[0].find('a', class_='w')
         loser = players[1].find('a')
@@ -72,6 +117,18 @@ class MatchStatScraper(object):
         return winner, loser
 
     def get_odds(self, match_data):
+        """Extracts winner and loser odds from the match data.
+
+        Args:
+            match_data (BeautifulSoup object): The match data scraped for this
+                match.
+
+        Returns:
+            Dict[str] to float: A dictionary containing keys 'odds_winner' and
+            'odds_loser' containing the winner and loser's odds, respectively,
+            if odds are available; the dictionary misses entries if they are
+            not available.
+        """
 
         cur_results = {}
 
@@ -98,6 +155,22 @@ class MatchStatScraper(object):
         return cur_results
 
     def get_stats(self, match_data, winner_name, loser_name):
+        """Fetches the match statistics for the match.
+
+        Args:
+            match_data (BeautifulSoup object): The match data scraped for this
+                match.
+            winner_name (str): The match winner's name.
+            loser_name (str): The match loser's name.
+
+        Returns:
+            dict[str] to value: Returns various statistics, using the naming
+            MatchStat uses, but prefixing them with winner and loser.
+
+        Example:
+            One entry may be 'loser_points_won', which has a corresponding
+            entry 'winner_points_won' for the winning player.
+        """
 
         cur_results = {}
 
@@ -122,7 +195,10 @@ class MatchStatScraper(object):
 
                 cur_player = stat_dict['player_fullname']
 
-                assert(cur_player in [winner_name, loser_name])
+                if cur_player not in [winner_name, loser_name]:
+
+                    raise ScrapingException(
+                        'Could not find player {} in stat_dict.')
 
                 if cur_player == winner_name:
 
@@ -141,13 +217,23 @@ class MatchStatScraper(object):
             return cur_results
 
     def get_tournament_data(self, tournament_link, get_stats=False):
+        """Fetches all match data available for the tournament linked.
+
+        Args:
+            tournament_link (str): The link to MatchStat.com's tournament
+                results page.
+            get_stats (Optional[bool]): If True, fetches match statistics.
+
+        Returns:
+            pd.DataFrame: A DataFrame containing a row with information for
+            each match.
+        """
 
         # Open the page
         page = urllib2.urlopen(tournament_link)
         soup = BeautifulSoup(page, 'html.parser')
 
-        match_highlights = soup.find_all('tr',
-                                            class_=re.compile('match *'))
+        match_highlights = soup.find_all('tr', class_=re.compile('match *'))
 
         results = list()
 
@@ -155,7 +241,12 @@ class MatchStatScraper(object):
 
             cur_results = {}
 
-            winner, loser = self.get_winner_loser(match_data)
+            try:
+                winner, loser = self.get_winner_loser(match_data)
+
+            except ScrapingException as s:
+                logger.debug(s)
+                continue
 
             if winner is None or loser is None:
                 continue
@@ -172,6 +263,13 @@ class MatchStatScraper(object):
             score = match_data.find('div', class_='score-content')
 
             if score is not None:
+
+                if score.a.string is None:
+
+                    logger.debug(
+                        'Found score string which is None: {}'.format(score))
+
+                    continue
 
                 score_str = score.a.string.strip()
                 cur_results['score'] = score_str.replace(u'\u2011', '-')
@@ -193,8 +291,13 @@ class MatchStatScraper(object):
 
             if get_stats:
 
-                cur_results.update(
-                    self.get_stats(match_data, winner_name, loser_name))
+                try:
+                    cur_results.update(
+                        self.get_stats(match_data, winner_name, loser_name))
+
+                except ScrapingException as s:
+                    logger.debug(s)
+                    continue
 
             results.append(cur_results)
 
@@ -203,6 +306,15 @@ class MatchStatScraper(object):
         return results
 
     def scrape_all(self, year, t_type='atp'):
+        """Scrapes all available matches in the given year for the given tour.
+
+        Args:
+            year (int): The year to scrape matches for.
+            t_type (str): The tour type to scrape. Can be either atp or wta.
+
+        Returns:
+            pd.DataFrame: A DataFrame with one row of info per match.
+        """
 
         data = self.get_tournament_links(year, t_type=t_type)
 
@@ -215,7 +327,7 @@ class MatchStatScraper(object):
 
         for i, (index, tournament) in enumerate(data.iterrows()):
 
-            print('Current tournament is: {}'.format(
+            logger.info('Current tournament is: {}'.format(
                 tournament['tournament_name']))
 
             cur_link = tournament['tournament_link']
@@ -237,5 +349,4 @@ if __name__ == '__main__':
 
     scraper = MatchStatScraper()
     all_data = scraper.scrape_all(2016)
-
     all_data.to_csv('2016_atp.csv', encoding='utf-8')
