@@ -1,3 +1,4 @@
+import os
 import re
 import json
 import urllib2
@@ -23,6 +24,10 @@ class ScrapingException(Exception):
 
 class MatchStatScraper(object):
     """Scrapes match data from MatchStat.com."""
+
+    def __init__(self):
+
+        self.cache_path = 'data/cache/'
 
     def get_calendar_link(self, year):
         """Helper function returning link to calendar site.
@@ -60,7 +65,11 @@ class MatchStatScraper(object):
         calendar_link = self.get_calendar_link(year)
 
         # Open calendar
-        page = urllib2.urlopen(calendar_link)
+        try:
+            page = urllib2.urlopen(calendar_link)
+        except urllib2.URLError as a:
+            logger.error('URL error fetching calendar')
+
         soup = BeautifulSoup(page, 'html.parser')
 
         # Find the links
@@ -214,7 +223,7 @@ class MatchStatScraper(object):
 
                     cur_results.update(new_dict)
 
-            return cur_results
+        return cur_results
 
     def get_tournament_data(self, tournament_link, get_stats=False):
         """Fetches all match data available for the tournament linked.
@@ -292,8 +301,11 @@ class MatchStatScraper(object):
             if get_stats:
 
                 try:
-                    cur_results.update(
-                        self.get_stats(match_data, winner_name, loser_name))
+
+                    result = self.get_stats(match_data, winner_name,
+                                            loser_name)
+
+                    cur_results.update(result)
 
                 except ScrapingException as s:
                     logger.debug(s)
@@ -305,7 +317,7 @@ class MatchStatScraper(object):
 
         return results
 
-    def scrape_all(self, year, t_type='atp'):
+    def scrape_all(self, year, t_type='atp', use_cache=True):
         """Scrapes all available matches in the given year for the given tour.
 
         Args:
@@ -315,6 +327,8 @@ class MatchStatScraper(object):
         Returns:
             pd.DataFrame: A DataFrame with one row of info per match.
         """
+
+        cache_dir = os.path.join(self.cache_path, t_type)
 
         data = self.get_tournament_links(year, t_type=t_type)
 
@@ -327,16 +341,36 @@ class MatchStatScraper(object):
 
         for i, (index, tournament) in enumerate(data.iterrows()):
 
-            logger.info('Current tournament is: {}'.format(
-                tournament['tournament_name']))
+            logger.info('Current tournament is: {} {}'.format(
+                tournament['tournament_name'], year))
 
-            cur_link = tournament['tournament_link']
+            cache_name = '{}/{}_{}_cached.csv'.format(
+                cache_dir, tournament['tournament_name'].replace('/', ' '),
+                year)
 
-            cur_data = self.get_tournament_data(cur_link, get_stats=True)
+            if use_cache and os.path.isfile(cache_name):
 
-            for value in tournament.index:
+                logger.info('Using cached csv.')
 
-                cur_data[value] = tournament[value]
+                cur_data = pd.read_csv(cache_name, index_col=0)
+
+            else:
+
+                cur_link = tournament['tournament_link']
+
+                cur_data = self.get_tournament_data(cur_link, get_stats=True)
+
+                for value in tournament.index:
+
+                    cur_data[value] = tournament[value]
+
+                if use_cache:
+
+                    if not os.path.isdir(cache_dir):
+
+                        os.makedirs(cache_dir)
+
+                    cur_data.to_csv(cache_name, encoding='utf-8')
 
             all_dfs.append(cur_data)
 
@@ -348,5 +382,9 @@ class MatchStatScraper(object):
 if __name__ == '__main__':
 
     scraper = MatchStatScraper()
-    all_data = scraper.scrape_all(2016)
-    all_data.to_csv('2016_atp.csv', encoding='utf-8')
+
+    for year in range(1969, 2017):
+
+        all_data = scraper.scrape_all(year, t_type='atp')
+
+        all_data.to_csv('{}_atp.csv'.format(year), encoding='utf-8')
