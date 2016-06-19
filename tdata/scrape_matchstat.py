@@ -7,6 +7,7 @@ import pandas as pd
 
 from datetime import date
 from bs4 import BeautifulSoup
+from tdata.utils import retry
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -65,10 +66,7 @@ class MatchStatScraper(object):
         calendar_link = self.get_calendar_link(year)
 
         # Open calendar
-        try:
-            page = urllib2.urlopen(calendar_link)
-        except urllib2.URLError as a:
-            logger.error('URL error fetching calendar')
+        page = self.get_page(calendar_link)
 
         soup = BeautifulSoup(page, 'html.parser')
 
@@ -163,6 +161,12 @@ class MatchStatScraper(object):
 
         return cur_results
 
+    @retry(urllib2.URLError, tries=4, delay=3, backoff=2)
+    def get_page(self, link):
+
+        data = urllib2.urlopen(link, timeout=10)
+        return data
+
     def get_stats(self, match_data, winner_name, loser_name):
         """Fetches the match statistics for the match.
 
@@ -188,7 +192,7 @@ class MatchStatScraper(object):
         if stats is not None:
 
             link = stats.get('href')
-            data = urllib2.urlopen(link)
+            data = self.get_page(link)
             parsed = BeautifulSoup(data, 'html.parser')
             loaded = json.loads(parsed.string)
 
@@ -239,7 +243,7 @@ class MatchStatScraper(object):
         """
 
         # Open the page
-        page = urllib2.urlopen(tournament_link)
+        page = self.get_page(tournament_link)
         soup = BeautifulSoup(page, 'html.parser')
 
         match_highlights = soup.find_all('tr', class_=re.compile('match *'))
@@ -386,5 +390,5 @@ if __name__ == '__main__':
     for year in range(1969, 2017):
 
         all_data = scraper.scrape_all(year, t_type='atp')
-
-        all_data.to_csv('{}_atp.csv'.format(year), encoding='utf-8')
+        all_data.to_csv('data/year_csvs/{}_atp.csv'.format(year),
+                        encoding='utf-8')
