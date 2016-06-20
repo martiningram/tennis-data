@@ -1,0 +1,2 @@
+class CodeParsingException(Exception):
+    pass
