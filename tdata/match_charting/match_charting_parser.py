@@ -158,10 +158,6 @@ class MatchChartingParser(object):
                     cur_server, cur_returner, server_won, first_code,
                     second_code)
 
-                shot_sequence.print_sequence()
-
-                print('')
-
             except CodeParsingException as e:
 
                 print(point.score)
