@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 import pandas as pd
 
@@ -210,7 +211,11 @@ if __name__ == '__main__':
     def test_match():
 
         parser = MatchChartingParser()
-        parser.parse_match(
-            '20090201-M-Australian_Open-F-Roger_Federer-Rafael_Nadal')
+
+        ids = parser.get_match_df('atp')['match_id']
+
+        for cur_id in ids:
+
+            parser.parse_match(cur_id)
 
     test_match()
