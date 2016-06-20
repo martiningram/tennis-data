@@ -9,6 +9,15 @@ from copy import deepcopy
 from tdata.match_charting.shot_sequence import ShotSequence
 from tdata.match_charting.exceptions import CodeParsingException
 
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+# Make sure we write to log
+fh = logging.FileHandler('chart_parse.log')
+fh.setLevel(logging.DEBUG)
+logger.addHandler(fh)
+
 
 class MatchChartingParser(object):
 
@@ -60,7 +69,10 @@ class MatchChartingParser(object):
                 'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec')
 
             if np.sum(date_version) > 0:
-                print('Skipping match -- contains date')
+
+                logger.info('Skipping match {} -- contains date'.format(
+                    match_df.iloc[0]['match_id']))
+
                 return []
 
         boolean_list = list()
@@ -90,7 +102,7 @@ class MatchChartingParser(object):
                         split_version[1] > score_after_split[1])
 
                 except IndexError:
-                    print('Skipping match -- unexpected score format')
+                    logger.info('Skipping match -- unexpected score format')
                     return []
 
         return boolean_list
@@ -161,8 +173,9 @@ class MatchChartingParser(object):
 
             except CodeParsingException as e:
 
-                print(point.score)
-                print(e)
+                logger.warning('Parsing failed: {} at score: {}'.format(
+                    e, point.score))
+
                 shot_sequence = None
 
             new_point = deepcopy(point)
