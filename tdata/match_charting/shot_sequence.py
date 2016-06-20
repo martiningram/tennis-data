@@ -25,6 +25,20 @@ class ShotSequence(object):
         self.server_lost_outright = server_lost_outright
         self.server_won_outright = server_won_outright
 
+    def print_sequence(self):
+
+        if self.first_serve is not None:
+            print(self.first_serve)
+
+        if self.second_serve is not None:
+            print(self.second_serve)
+
+        if self.rally is not None:
+
+            for shot in self.rally.shots:
+
+                print(shot)
+
     @classmethod
     def from_code(cls, server, returner, server_won, first_code,
                   second_code):
