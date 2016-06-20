@@ -161,7 +161,7 @@ class MatchStatScraper(object):
 
         return cur_results
 
-    @retry(urllib2.URLError, tries=4, delay=3, backoff=2)
+    @retry(Exception, tries=4, delay=3, backoff=2)
     def get_page(self, link):
 
         data = urllib2.urlopen(link, timeout=10)
@@ -387,7 +387,7 @@ if __name__ == '__main__':
 
     scraper = MatchStatScraper()
 
-    for year in range(1969, 2017):
+    for year in range(1999, 2017):
 
         all_data = scraper.scrape_all(year, t_type='atp')
         all_data.to_csv('data/year_csvs/{}_atp.csv'.format(year),
