@@ -1,17 +1,21 @@
+import logging
+
 from tdata.match_charting.exceptions import CodeParsingException
 from tdata.match_charting.enums import ReturnDepthEnum, ShotDirectionEnum, \
-    ShotTypeEnum
+    ShotTypeEnum, FaultEnum
 
 possible_depth_vals = [str(x.value) for x in ReturnDepthEnum]
 possible_directions = [str(x.value) for x in ShotDirectionEnum]
+possible_errors = [str(x.value) for x in FaultEnum]
 
 
 class Shot(object):
 
-    def __init__(self, player_name, shot_type, direction=None, is_winner=False,
-                 is_forced_error=False, is_unforced_error=False,
-                 is_approach=False, is_unexpected_position=False,
-                 clipped_net=False, has_coding_error=False):
+    def __init__(self, player_name, shot_type, direction=None, error_type=None,
+                 is_winner=False, is_forced_error=False,
+                 is_unforced_error=False, is_approach=False,
+                 is_unexpected_position=False, clipped_net=False,
+                 has_coding_error=False):
 
         self.player_name = player_name
         self.shot_type = shot_type
@@ -19,6 +23,7 @@ class Shot(object):
         self.is_winner = is_winner
         self.is_forced_error = is_forced_error
         self.is_unforced_error = is_unforced_error
+        self.error_type = error_type
         self.is_approach = is_approach
         self.is_unexpected_position = is_unexpected_position
         self.clipped_net = clipped_net
@@ -55,22 +60,46 @@ class Shot(object):
 
             output += ' It was an unforced error.'
 
+        if self.error_type is not None:
+
+            output += ' The fault type was: {}'.format(self.error_type.name)
+
         return output
 
 
 class ServeReturn(Shot):
 
-    def __init__(self, player_name, shot_type, depth=None, direction=None,
-                 is_winner=False, is_forced_error=False,
+    def __init__(self, player_name, shot_type, depth=None, error_type=None,
+                 direction=None, is_winner=False, is_forced_error=False,
                  is_unforced_error=False, is_approach=False,
                  is_unexpected_position=False, clipped_net=False):
 
         self.depth = depth
 
-        super(ServeReturn, self).__init__(player_name, shot_type, direction,
-                                          is_winner, is_forced_error,
-                                          is_unforced_error, is_approach,
-                                          is_unexpected_position, clipped_net)
+        super(ServeReturn, self).__init__(
+            player_name=player_name, shot_type=shot_type,
+            error_type=error_type, direction=direction, is_winner=is_winner,
+            is_forced_error=is_forced_error,
+            is_unforced_error=is_unforced_error, is_approach=is_approach,
+            is_unexpected_position=is_unexpected_position,
+            clipped_net=clipped_net)
+
+    def __str__(self):
+
+        shot_info = super(ServeReturn, self).__str__()
+
+        if self.depth is not None:
+
+            shot_info += ' Return depth: {}'.format(self.depth.name)
+
+        return shot_info
+
+
+logger = logging.getLogger(__name__)
+# Make sure we write to log
+fh = logging.FileHandler('chart_parse.log')
+fh.setLevel(logging.DEBUG)
+logger.addHandler(fh)
 
 
 def get_shot(player_name, shot_code, is_return):
@@ -86,17 +115,40 @@ def get_shot(player_name, shot_code, is_return):
 
     direction_hits = [x for x in shot_code if x in possible_directions]
 
+    # By default, no fault, direction and depth
+    error_type = None
+    direction = None
+    depth = None
+
     if len(direction_hits) > 1:
 
-        raise CodeParsingException('More than one shot direction specified')
+        text = 'More than one shot direction specified'
 
-    if len(direction_hits) == 1:
+        logger.warning('Failed to parse: {}. Reason: {}'.format(
+            shot_code, text))
+
+        raise CodeParsingException(text)
+
+    elif len(direction_hits) == 1:
 
         direction = ShotDirectionEnum(int(direction_hits[0]))
 
-    else:
+    if is_forced_error or is_unforced_error:
 
-        direction = None
+        fault_hits = [x for x in shot_code if x in possible_errors]
+
+        if len(fault_hits) > 1:
+
+            text = 'More than one shot fault type specified'
+
+            logger.warning('Failed to parse: {}. Reason: {}'.format(
+                shot_code, text))
+
+            raise CodeParsingException(text)
+
+        elif len(fault_hits) == 1:
+
+            error_type = FaultEnum(fault_hits[0])
 
     if is_return:
 
@@ -105,18 +157,20 @@ def get_shot(player_name, shot_code, is_return):
 
         if len(depth_hits) > 1:
 
-            raise CodeParsingException('More than one return depth specified')
+            text = 'More than one return depth specified'
 
-        if len(depth_hits) == 1:
+            logger.warning('Failed to parse: {}. Reason: {}'.format(
+                shot_code, text))
+
+            raise CodeParsingException(text)
+
+        elif len(depth_hits) == 1:
 
             depth = ReturnDepthEnum(int(depth_hits[0]))
 
-        else:
-
-            depth = None
-
         return ServeReturn(player_name, shot_type, depth=depth,
-                           direction=direction, is_winner=is_winner,
+                           direction=direction, error_type=error_type,
+                           is_winner=is_winner,
                            is_forced_error=is_forced_error,
                            is_unforced_error=is_unforced_error,
                            is_approach=is_approach_shot,
@@ -126,7 +180,8 @@ def get_shot(player_name, shot_code, is_return):
     else:
 
         return Shot(player_name, shot_type, direction=direction,
-                    is_winner=is_winner, is_forced_error=is_forced_error,
+                    error_type=error_type, is_winner=is_winner,
+                    is_forced_error=is_forced_error,
                     is_unforced_error=is_unforced_error,
                     is_approach=is_approach_shot,
                     is_unexpected_position=is_unexpected,

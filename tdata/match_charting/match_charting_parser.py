@@ -10,7 +10,6 @@ from tdata.match_charting.shot_sequence import ShotSequence
 from tdata.match_charting.exceptions import CodeParsingException
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Make sure we write to log
@@ -25,6 +24,7 @@ class MatchChartingParser(object):
 
         self.match_dfs = {x: self.get_match_df(x) for x in ['atp', 'wta']}
         self.points_dfs = {x: self.get_points_df(x) for x in ['atp', 'wta']}
+        self.error_messages = list()
 
     def get_match_df(self, t_type='atp'):
 
@@ -32,13 +32,20 @@ class MatchChartingParser(object):
 
         if t_type == 'atp':
 
-            return pd.read_csv(
+            df = pd.read_csv(
                 'data/tennis_MatchChartingProject/charting-m-matches.csv')
 
         else:
 
-            return pd.read_csv(
+            df = pd.read_csv(
                 'data/tennis_MatchChartingProject/charting-w-matches.csv')
+
+        if t_type == 'atp':
+            df['Date'] = pd.to_datetime(df['Date'])
+        else:
+            df['Date'] = pd.to_datetime(df['Date'], format='%Y%m%d')
+
+        return df
 
     def get_points_df(self, t_type='atp'):
 
@@ -136,6 +143,9 @@ class MatchChartingParser(object):
 
         match_data = indexed_match_df.loc[match_id]
 
+        if len(match_data.shape) > 1:
+            match_data = match_data.iloc[0]
+
         # Find match df
         match_df = self.points_dfs[t_type].groupby('match_id').get_group(
             match_id)
@@ -147,6 +157,7 @@ class MatchChartingParser(object):
         first_codes, second_codes = match_df['1st'], match_df['2nd']
 
         sequence = self.turn_into_boolean_sequence(match_df)
+
         points = self.points_from_sequence(first_server, first_receiver,
                                            sequence, is_bo5)
 
@@ -173,6 +184,8 @@ class MatchChartingParser(object):
 
             except CodeParsingException as e:
 
+                self.error_messages.append(str(e))
+
                 logger.warning('Parsing failed: {} at score: {}'.format(
                     e, point.score))
 
@@ -184,51 +197,4 @@ class MatchChartingParser(object):
 
             with_sequence.append(new_point)
 
-
-if __name__ == '__main__':
-
-    def get_final_scores():
-
-        parser = MatchChartingParser()
-
-        sequence_df = parser.get_all_sequences()
-
-        suggested_final_scores = list()
-
-        for i, row in sequence_df.iterrows():
-
-            win_sequence = row['win_sequence']
-            first_server = row['Player 1']
-            first_receiver = row['Player 2']
-            bo5 = row['Best of'] == 5
-
-            points = parser.points_from_sequence(
-                first_server, first_receiver, win_sequence, bo5)
-
-            final_score = str(points[-1].score)
-
-            print(final_score)
-
-            suggested_final_scores.append(final_score)
-
-        sequence_df['final_score_suggested'] = suggested_final_scores
-
-        sequence_df.to_csv('sequences_with_scores.csv')
-
-    def get_sequences(t_type='atp'):
-
-        parser = MatchChartingParser()
-        sequence_df = parser.get_all_sequences(t_type)
-        sequence_df.to_csv('{}_sequences.csv'.format(t_type))
-
-    def test_match():
-
-        parser = MatchChartingParser()
-
-        ids = parser.get_match_df('atp')['match_id']
-
-        for cur_id in ids:
-
-            parser.parse_match(cur_id)
-
-    test_match()
+        return with_sequence

@@ -16,6 +16,7 @@ class FaultEnum(Enum):
     deep = 'd'
     wide_and_deep = 'x'
     foot_fault = 'g'
+    shank = '!'
     unknown = 'e'
 
 

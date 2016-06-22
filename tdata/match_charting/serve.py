@@ -64,18 +64,20 @@ class Serve(object):
 
         except ValueError:
 
-            raise CodeParsingException('Non-integer serve direction')
+            raise CodeParsingException('Non-integer serve direction.'
+                                       ' Full code is: {}'.format(code))
 
         if direction not in [0, 4, 5, 6]:
 
-            raise CodeParsingException('Unknown serve direction')
+            raise CodeParsingException(
+                'Unknown serve direction {}'.format(code))
 
         is_s_v = code[1] == '+'
 
         # Replace that one
         code = code.replace('+', '', 1)
 
-        is_fault = code[1] in ['n', 'w', 'd', 'x', 'g', 'e']
+        is_fault = code[1] in ['n', 'w', 'd', 'x', 'g', 'e', '!']
         is_ace = code[1] == '*'
         is_unreturnable = code[1] == '#'
 
@@ -84,7 +86,8 @@ class Serve(object):
             if len(code) != 2:
 
                 raise CodeParsingException(
-                    'Unexpected characters after serve fault')
+                    'Unexpected characters after serve fault.'
+                    ' Full code is: {}'.format(code))
 
             else:
 

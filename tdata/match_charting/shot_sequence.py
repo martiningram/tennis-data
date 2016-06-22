@@ -1,5 +1,6 @@
 from tdata.match_charting.serve import Serve
 from tdata.match_charting.rally import Rally
+from tdata.match_charting.enums import FaultEnum
 from tdata.match_charting.exceptions import CodeParsingException
 
 
@@ -43,7 +44,12 @@ class ShotSequence(object):
     def from_code(cls, server, returner, server_won, first_code,
                   second_code):
 
+        # Strip code to avoid whitespace errors:
+        first_code = first_code.strip()
+
         if len(first_code) == 1:
+
+            possible_faults = [x.value for x in FaultEnum]
 
             if first_code in ['S', 'R']:
 
@@ -60,9 +66,15 @@ class ShotSequence(object):
                 return ShotSequence(server, returner, server_won,
                                     server_won_outright=True)
 
+            # Allow faults without directions (replace with unknown direction)
+            elif first_code in possible_faults:
+
+                    first_code = '0' + first_code
+
             else:
 
-                raise CodeParsingException('Unknown single-character code')
+                raise CodeParsingException(
+                    'Unknown single-character code: {}'.format(first_code))
 
         # Parse first serve
         first_serve, remaining_code = Serve.from_code(
@@ -71,6 +83,8 @@ class ShotSequence(object):
         rally = None
 
         if first_serve.was_fault():
+
+            second_code = second_code.strip()
 
             second_serve, remaining_code = Serve.from_code(
                 second_code, server, is_first=False)
