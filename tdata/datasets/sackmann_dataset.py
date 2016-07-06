@@ -42,11 +42,15 @@ class SackmannDataset(Dataset):
         big_df = pd.concat([big_df, stats_df], axis=1)
 
         self.full_df = big_df
-        self.by_players = big_df.set_index(['winner', 'loser'])
+        self.by_players = big_df.set_index(['winner', 'loser'], drop=False)
 
     def get_stats_df(self):
 
         return self.full_df
+
+    def get_player_df(self):
+
+        return self.by_players
 
     def rename_cols(self, df):
 
@@ -154,81 +158,6 @@ class SackmannDataset(Dataset):
 
         return stats
 
-    def get_player_matches(self, player_name, min_date=None, max_date=None,
-                           surface=None):
-
-        all_matches = list()
-
-        # Get matches the player won:
-
-        try:
-
-            won_matches = self.by_players.xs(player_name, level='winner')
-
-        except KeyError as k:
-
-            won_matches = pd.DataFrame()
-
-        if len(won_matches) > 0:
-
-            # Reduce to date range:
-            if min_date is not None:
-                won_matches = won_matches[won_matches['start_date'] > min_date]
-
-            if max_date is not None:
-                won_matches = won_matches[won_matches['start_date'] < max_date]
-
-            if surface is not None:
-                won_matches = won_matches[won_matches['surface'] == surface]
-
-            for loser, row in won_matches.iterrows():
-
-                stats = self.calculate_stats(player_name, loser, row)
-
-                match = CompletedMatch(
-                    p1=player_name, p2=loser, date=row['start_date'],
-                    winner=player_name, stats=stats,
-                    tournament_name=row['tournament_name'],
-                    surface=row['surface'])
-
-                all_matches.append(match)
-
-        # Get matches the player lost:
-
-        try:
-
-            lost_matches = self.by_players.xs(player_name, level='loser')
-
-        except KeyError as k:
-
-            lost_matches = pd.DataFrame()
-
-        if len(lost_matches) > 0:
-
-            # Reduce to date range:
-            if min_date is not None:
-                lost_matches = lost_matches[lost_matches['start_date'] > min_date]
-
-            if max_date is not None:
-                lost_matches = lost_matches[lost_matches['start_date'] < max_date]
-
-            if surface is not None:
-                lost_matches = lost_matches[lost_matches['surface'] == surface]
-
-            for winner, row in lost_matches.iterrows():
-
-                stats = self.calculate_stats(winner, player_name, row)
-
-                match = CompletedMatch(
-                    p1=player_name, p2=winner, date=row['start_date'],
-                    winner=winner, stats=stats,
-                    tournament_name=row['tournament_name'],
-                    surface=row['surface'])
-
-                all_matches.append(match)
-
-        return sorted(all_matches, key=lambda x: x.date)
-
 
 if __name__ == '__main__':
 
@@ -236,9 +165,14 @@ if __name__ == '__main__':
 
     ds = SackmannDataset()
 
-    matches = [x for x in ds.get_player_matches(
-        'Roger Federer', min_date=date(2015, 8, 1))]
+#     matches = ds.get_matches_between(min_date=date(2015, 1, 1),
+                                     # max_date=date(2015, 12, 31),
+                                     # surface='Hard')
 
-    for match in matches:
+    player_matches = ds.get_player_matches('Roger Federer',
+                                           date(2015, 1, 1),
+                                           date(2015, 3, 1))
+
+    for match in player_matches:
 
         print(match)

@@ -28,12 +28,17 @@ class MatchStatDataset(Dataset):
 
         concatenated = pd.concat([concatenated, stats], axis=1)
 
-        self.by_players = concatenated.set_index(['winner', 'loser'])
+        self.by_players = concatenated.set_index(['winner', 'loser'],
+                                                 drop=False)
         self.full_df = concatenated
 
     def get_stats_df(self):
 
         return self.full_df
+
+    def get_player_df(self):
+
+        return self.by_players
 
     def get_tournament_serve_average(self, tournament_name, min_date=None,
                                      max_date=None):
@@ -90,69 +95,6 @@ class MatchStatDataset(Dataset):
 
         return results
 
-    def get_player_matches(self, player_name, min_date=None, max_date=None,
-                           surface=None):
-
-        assert(surface is None)
-
-        all_matches = list()
-
-        # Get matches the player won:
-
-        try:
-            won_matches = self.by_players.xs(player_name, level='winner')
-        except KeyError as k:
-            won_matches = pd.DataFrame()
-
-        if len(won_matches) > 0:
-
-            # Reduce to date range:
-            if min_date is not None:
-                won_matches = won_matches[won_matches['start_date'] > min_date]
-
-            if max_date is not None:
-                won_matches = won_matches[won_matches['start_date'] < max_date]
-
-            for loser, row in won_matches.iterrows():
-
-                stats = self.calculate_stats(player_name, loser, row)
-
-                match = CompletedMatch(
-                    p1=player_name, p2=loser, date=row['start_date'],
-                    winner=player_name, stats=stats,
-                    tournament_name=row['tournament_name'])
-
-                all_matches.append(match)
-
-        # Get matches the player lost:
-
-        try:
-            lost_matches = self.by_players.xs(player_name, level='loser')
-        except KeyError as k:
-            lost_matches = pd.DataFrame()
-
-        if len(lost_matches) > 0:
-
-            # Reduce to date range:
-            if min_date is not None:
-                lost_matches = lost_matches[lost_matches['start_date'] > min_date]
-
-            if max_date is not None:
-                lost_matches = lost_matches[lost_matches['start_date'] < max_date]
-
-            for winner, row in lost_matches.iterrows():
-
-                stats = self.calculate_stats(winner, player_name, row)
-
-                match = CompletedMatch(
-                    p1=player_name, p2=winner, date=row['start_date'],
-                    winner=winner, stats=stats,
-                    tournament_name=row['tournament_name'])
-
-                all_matches.append(match)
-
-        return sorted(all_matches, key=lambda x: x.date)
-
     def calculate_stats(self, winner, loser, row):
 
         # Drop the nans:
@@ -193,10 +135,14 @@ class MatchStatDataset(Dataset):
 
         return stats
 
+
 if __name__ == '__main__':
 
     from datetime import date
 
     dataset = MatchStatDataset()
 
-    print(dataset.get_tournament_serve_average('Stuttgart'))
+    test = dataset.get_player_matches('Roger Federer', date(2015, 1, 1),
+                                      date(2015, 12, 1))
+
+    print(len(test))
