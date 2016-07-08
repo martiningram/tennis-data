@@ -1,6 +1,7 @@
 import glob
 import pandas as pd
 
+from pathlib import Path
 from collections import defaultdict
 from tdata.datasets.dataset import Dataset
 from tdata.datasets.match import CompletedMatch
@@ -12,7 +13,13 @@ class MatchStatDataset(Dataset):
     def __init__(self):
 
         # Import all data:
-        all_csvs = glob.glob('data/year_csvs/*.csv')
+        # Find the correct directory:
+        exec_dir = Path(__file__).parents[2]
+
+        # Get all csv filenames:
+        all_csvs = glob.glob(
+            '{}/data/year_csvs/*.csv'.format(exec_dir))
+
         all_read = [pd.read_csv(x, index_col=0) for x in all_csvs]
         concatenated = pd.concat(all_read, ignore_index=True)
         concatenated['start_date'] = pd.to_datetime(concatenated['start_date'])
@@ -67,10 +74,13 @@ class MatchStatDataset(Dataset):
 
         for role in ['winner', 'loser']:
 
+            # Note: These are somewhat suspect. Only the return points won
+            # agree with Sackmann's results, so perhaps there is some issue
+            # with double faults / aces that needs to be accounted for.
+
             results['{}_first_serve_pct'.format(role)] = (
                 df['{}_serve_1st_total'.format(role)] / (
-                df['{}_serve_1st_attempts'.format(role)]
-                + df['{}_double_faults'.format(role)]))
+                    df['{}_serve_1st_attempts'.format(role)]))
 
             results['{}_first_serve_won_pct'.format(role)] = (
                 df['{}_serve_1st_won'.format(role)] /
@@ -78,18 +88,19 @@ class MatchStatDataset(Dataset):
 
             results['{}_second_serve_won_pct'.format(role)] = (
                 df['{}_serve_2nd_won'.format(role)] / (
-                df['{}_serve_2nd_total'.format(role)]
-                + df['{}_double_faults'.format(role)]))
+                    df['{}_serve_2nd_total'.format(role)]))
 
             results['{}_return_points_won_pct'.format(role)] = (
                 df['{}_return_points_won'.format(role)] /
                 df['{}_return_points_total'.format(role)])
 
-            results['{}_serve_points_won_pct'.format(role)] = (
-                results['{}_first_serve_pct'.format(role)] *
-                results['{}_first_serve_won_pct'.format(role)] +
-                (1 - results['{}_first_serve_pct'.format(role)]) *
-                results['{}_second_serve_won_pct'.format(role)])
+        # Try using potentially more reliable return info instead of that
+        # calculated above:
+        results['winner_serve_points_won_pct'] = (
+            1 - results['loser_return_points_won_pct'])
+
+        results['loser_serve_points_won_pct'] = (
+            1 - results['winner_return_points_won_pct'])
 
         results = pd.DataFrame(results)
 
@@ -106,15 +117,12 @@ class MatchStatDataset(Dataset):
 
         for role, name in zip(['winner', 'loser'], [winner, loser]):
 
-            stats_results = defaultdict(dict)
-
             first_serve_pct = row['{}_first_serve_pct'.format(role)]
             first_won_pct = row['{}_first_serve_won_pct'.format(role)]
             second_won_pct = row['{}_second_serve_won_pct'.format(role)]
             return_won_pct = row['{}_return_points_won_pct'.format(role)]
 
-            serve_won_pct = (first_serve_pct * first_won_pct +
-                             (1 - first_serve_pct) * second_won_pct)
+            serve_won_pct = row['{}_serve_points_won_pct'.format(role)]
 
             if 'winners' in to_use.index:
 

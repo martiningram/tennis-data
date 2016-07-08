@@ -4,6 +4,7 @@ import json
 import urllib2
 import logging
 import pandas as pd
+import datetime
 
 from datetime import date
 from bs4 import BeautifulSoup
@@ -382,12 +383,11 @@ class MatchStatScraper(object):
 
         return all_dfs
 
-
 if __name__ == '__main__':
 
     scraper = MatchStatScraper()
 
-    for year in range(2006, 2017):
+    for year in [2016]:
 
         all_data = scraper.scrape_all(year, t_type='atp')
         all_data.to_csv('data/year_csvs/{}_atp.csv'.format(year),

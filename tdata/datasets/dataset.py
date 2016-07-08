@@ -20,7 +20,7 @@ class Dataset(object):
 
                 cur_matches = by_players.xs(player_name, level=level)
 
-            except KeyError as k:
+            except KeyError:
 
                 cur_matches = pd.DataFrame()
 
@@ -67,15 +67,15 @@ class Dataset(object):
                                 else row['loser'])
 
                     if 'surface' in row.index:
-                        surface = row['surface']
+                        cur_surface = row['surface']
                     else:
-                        surface = None
+                        cur_surface = None
 
                     match = CompletedMatch(
                         p1=player_name, p2=opponent, date=row['start_date'],
                         winner=row['winner'], stats=stats,
                         tournament_name=row['tournament_name'],
-                        surface=surface)
+                        surface=cur_surface)
 
                     all_matches.append(match)
 
@@ -123,21 +123,21 @@ class Dataset(object):
         if len(subset) == 0:
             return matches
 
-        for i, row in subset.iterrows():
+        for _, row in subset.iterrows():
 
             stats = self.calculate_stats(
                 row['winner'], row['loser'], row)
 
-            if 'surface' not in row.index:
-                surface = None
+            if 'surface' not in row:
+                cur_surface = None
             else:
-                surface = row['surface']
+                cur_surface = row['surface']
 
             match = CompletedMatch(
                 p1=row['winner'], p2=row['loser'], date=row['start_date'],
                 winner=row['winner'], stats=stats,
                 tournament_name=row['tournament_name'],
-                surface=surface)
+                surface=cur_surface)
 
             matches.append(match)
 
