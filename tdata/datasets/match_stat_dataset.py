@@ -12,6 +12,8 @@ class MatchStatDataset(Dataset):
 
     def __init__(self):
 
+        super(MatchStatDataset, self).__init__()
+
         # Import all data:
         # Find the correct directory:
         exec_dir = Path(__file__).parents[2]
@@ -46,27 +48,6 @@ class MatchStatDataset(Dataset):
     def get_player_df(self):
 
         return self.by_players
-
-    def get_tournament_serve_average(self, tournament_name, min_date=None,
-                                     max_date=None):
-
-        tournament_df = self.full_df.set_index('tournament_name')
-        relevant_matches = tournament_df.loc[tournament_name]
-
-        if min_date is not None:
-
-            relevant_matches = relevant_matches[
-                relevant_matches['Date'] > min_date]
-
-        if max_date is not None:
-
-            relevant_matches = relevant_matches[
-                relevant_matches['Date'] < max_date]
-
-        averages = (relevant_matches['winner_serve_points_won_pct'] +
-                    relevant_matches['loser_serve_points_won_pct']) / 2
-
-        return averages.mean()
 
     def calculate_stats_df(self, df):
 

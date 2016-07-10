@@ -1,11 +1,16 @@
+import datetime
 import pandas as pd
 
 from abc import abstractmethod
-from datetime import timedelta
+from datetime import timedelta, date
 from tdata.datasets.match import CompletedMatch
 
 
 class Dataset(object):
+
+    def __init__(self):
+
+        self.tour_averages = dict()
 
     def get_player_matches(self, player_name, min_date=None, max_date=None,
                            surface=None):
@@ -81,10 +86,27 @@ class Dataset(object):
 
         return sorted(all_matches, key=lambda x: x.date)
 
-    @abstractmethod
     def get_tournament_serve_average(self, tournament_name, min_date=None,
                                      max_date=None):
-        pass
+
+        full_df = self.get_stats_df()
+        tournament_df = full_df.set_index('tournament_name')
+        relevant_matches = tournament_df.loc[tournament_name]
+
+        if min_date is not None:
+
+            relevant_matches = relevant_matches[
+                relevant_matches['start_date'] > min_date]
+
+        if max_date is not None:
+
+            relevant_matches = relevant_matches[
+                relevant_matches['start_date'] < max_date]
+
+        averages = (relevant_matches['winner_serve_points_won_pct'] +
+                    relevant_matches['loser_serve_points_won_pct']) / 2
+
+        return averages.mean()
 
     def get_matches_between(self, min_date=None, max_date=None, surface=None):
 
@@ -142,6 +164,33 @@ class Dataset(object):
             matches.append(match)
 
         return matches
+
+    def calculate_tour_average(self, year):
+
+        if year in self.tour_averages:
+
+            return self.tour_averages[year]
+
+        else:
+
+            subset = self.get_stats_df()
+
+            subset = subset.set_index('start_date')
+
+            date_version = date(year, 1, 1)
+
+            end_date = date_version + timedelta(days=364)
+
+            relevant = subset[str(date_version):str(end_date)]
+
+            averages = (relevant['winner_serve_points_won_pct'] +
+                        relevant['loser_serve_points_won_pct']) / 2
+
+            result = averages.mean()
+
+            self.tour_averages[year] = result
+
+            return result
 
     @abstractmethod
     def get_stats_df(self):

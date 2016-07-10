@@ -1,17 +1,16 @@
-import os
 import glob
 import pandas as pd
 
 from pathlib import Path
-from collections import defaultdict
 from tdata.datasets.dataset import Dataset
-from tdata.datasets.match import CompletedMatch
 from tdata.datasets.match_stats import MatchStats
 
 
 class SackmannDataset(Dataset):
 
     def __init__(self):
+
+        super(SackmannDataset, self).__init__()
 
         # Find the correct directory:
         exec_dir = Path(__file__).parents[2]
@@ -96,7 +95,7 @@ class SackmannDataset(Dataset):
 
             results['{}_first_serve_pct'.format(role)] = (
                 df['{}_serve_1st_total'.format(role)] / (
-                df['{}_serve_1st_attempts'.format(role)]))
+                    df['{}_serve_1st_attempts'.format(role)]))
 
             results['{}_first_serve_won_pct'.format(role)] = (
                 df['{}_serve_1st_won'.format(role)] /
@@ -104,7 +103,7 @@ class SackmannDataset(Dataset):
 
             results['{}_second_serve_won_pct'.format(role)] = (
                 df['{}_serve_2nd_won'.format(role)] / (
-                df['{}_serve_2nd_total'.format(role)]))
+                    df['{}_serve_2nd_total'.format(role)]))
 
             results['{}_serve_points_won_pct'.format(role)] = (
                 results['{}_first_serve_pct'.format(role)] *
@@ -126,8 +125,6 @@ class SackmannDataset(Dataset):
         stats = dict()
 
         for role, name in zip(['winner', 'loser'], [winner, loser]):
-
-            stats_results = defaultdict(dict)
 
             first_serve_pct = row['{}_first_serve_pct'.format(role)]
             first_won_pct = row['{}_first_serve_won_pct'.format(role)]
@@ -164,10 +161,6 @@ if __name__ == '__main__':
     from datetime import date
 
     ds = SackmannDataset()
-
-#     matches = ds.get_matches_between(min_date=date(2015, 1, 1),
-                                     # max_date=date(2015, 12, 31),
-                                     # surface='Hard')
 
     player_matches = ds.get_player_matches('Roger Federer',
                                            date(2015, 1, 1),
