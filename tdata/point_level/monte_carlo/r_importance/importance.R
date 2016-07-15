@@ -1,3 +1,5 @@
+# All credit for this code goes to Stephanie Kovalchik.
+
 importance <- function(point_x, point_y, game_x, game_y, 
 	set_x, set_y, tiebreak = FALSE, bestof3 = FALSE){
 

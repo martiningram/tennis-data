@@ -1,3 +1,5 @@
+# All credit for this code goes to Stephanie Kovalchik.
+
 # Importance matrices
 game_win <- function(p = .64, serve, return, tiebreak = FALSE){
 		
