@@ -7,6 +7,13 @@ from tdata.datasets.match import CompletedMatch
 
 
 class Dataset(object):
+    """An abstract base class designed to handle match data from any source.
+
+    Attributes:
+        tour_averages (dict): A dictionary storing the tour's average spw, if
+            calculated, for a particular year. This is to avoid costly
+            recomputation.
+    """
 
     def __init__(self):
 
@@ -14,6 +21,23 @@ class Dataset(object):
 
     def get_player_matches(self, player_name, min_date=None, max_date=None,
                            surface=None):
+        """
+        Fetches a player's matches, filtered by date and surface.
+
+        Args:
+            player_name (str): The name of the player to find matches for.
+            min_date (Optional[datetime.date]): The lowest date to find matches
+                for. This date is inclusive, i.e. the minimum date is included.
+            max_date (Optional[datetime.date]): The maximum date to find
+                matches for. This date is exclusive, i.e. the maximum date is
+                not included. This is to ensure that the match to predict is
+                not included when making predictions.
+            surface (str): The surface to filter matches for.
+
+        Returns:
+            List[CompletedMatch]: The list of matches the player played
+            in the given period on a given surface.
+        """
 
         by_players = self.get_player_df()
 
@@ -88,6 +112,21 @@ class Dataset(object):
 
     def get_tournament_serve_average(self, tournament_name, min_date=None,
                                      max_date=None):
+        """Returns the average probability of winning a point on serve for
+        the tournament given.
+
+        Args:
+            tournament_name (str): The name of the tournament to find the
+                serve average for.
+            min_date (Optional[datetime.date]): The minimum date to use
+                for the average.
+            max_date (Optional[datetime.date]): The maximum date to use
+                for the average.
+
+        Returns:
+            double: The average probability of winning a point on serve
+            in the tournament given in the date range given.
+        """
 
         full_df = self.get_stats_df()
         tournament_df = full_df.set_index('tournament_name')
@@ -109,6 +148,22 @@ class Dataset(object):
         return averages.mean()
 
     def get_matches_between(self, min_date=None, max_date=None, surface=None):
+        """Fetches matches in the dataset, optionally filtered by date and
+        surface.
+
+        Args:
+            min_date (Optional[datetime.date]): The lowest date to find matches
+                for. This date is inclusive, i.e. the minimum date is included.
+            max_date (Optional[datetime.date]): The maximum date to find
+                matches for. This date is exclusive, i.e. the maximum date is
+                not included. This is to ensure that the match to predict is
+                not included when making predictions.
+            surface (Optional[str]): The surface to filter matches for.
+
+        Returns:
+            List[CompletedMatch]: The list of matches satisfying the criteria
+            given.
+        """
 
         matches = list()
 
@@ -166,6 +221,16 @@ class Dataset(object):
         return matches
 
     def calculate_tour_average(self, year):
+        """Calculate the tour's average probability of winning a point on serve
+        for a given year.
+
+        Args:
+            year (int): The year to calculate the average for.
+
+        Returns:
+            double: The tour's average probability of winning a point on serve
+            for the year given.
+        """
 
         if year in self.tour_averages:
 
