@@ -2,8 +2,8 @@ import logging
 import numpy as np
 import pandas as pd
 
-from pbm.monte_carlo.monte_carlo import Score
-from pbm.match_prediction.in_play_predictor import InPlayPredictor
+from tdata.point_level.monte_carlo.monte_carlo import Score
+from tdata.point_level.point_utils import generate_points
 
 from copy import deepcopy
 from tdata.match_charting.shot_sequence import ShotSequence
@@ -132,7 +132,7 @@ class MatchChartingParser(object):
                              best_of_five):
 
         initial_score = Score(first_server, first_receiver, best_of_five)
-        sequence = InPlayPredictor.generate_points(initial_score, win_sequence)
+        sequence = generate_points(initial_score, win_sequence)
 
         return sequence
 
