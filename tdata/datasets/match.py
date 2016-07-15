@@ -2,6 +2,17 @@ import pandas as pd
 
 
 class Match(object):
+    """Class representing a tennis match.
+
+    Attributes:
+        p1 (str): Player 1's name.
+        p2 (str): Player 2's name.
+        date (datetime.date): The date the match takes place.
+        surface (Optional[str]): The surface the match is played on. The names
+            can vary by dataset, however they must be consistent.
+        tournament_name (Optional[str]): The name of the tournament the match
+            is played in.
+    """
 
     def __init__(self, p1, p2, date, surface=None, tournament_name=None):
 
@@ -12,6 +23,15 @@ class Match(object):
         self.tournament_name = tournament_name
 
     def get_opponent(self, player):
+        """Returns the player faced by the player given.
+
+        Args:
+            player (str): The player whose opponent is to be found.
+
+        Returns:
+            str: The name of the player's opponent. If the player given is
+            not present in the match, the program will exit.
+        """
 
         assert(player in [self.p1, self.p2])
 
@@ -23,6 +43,13 @@ class Match(object):
         return string
 
     def to_dict(self):
+        """Converts the Match object to a dictionary.
+
+        Returns:
+            dict: A dictionary with keys 'p1', 'p2', 'surface',
+            'tournament_name' and 'date' containing the information stored in
+            this class.
+        """
 
         info_dict = {'p1': self.p1, 'p2': self.p2, 'surface': self.surface,
                      'tournament_name': self.tournament_name, 'date':
@@ -32,6 +59,8 @@ class Match(object):
 
     @staticmethod
     def to_df(matches):
+        """A helper function which converts a list of matches into a
+        DataFrame."""
 
         results = list()
 
@@ -43,6 +72,19 @@ class Match(object):
 
 
 class CompletedMatch(Match):
+    """Stores information about a completed tennis match.
+
+    Note: Only the attributes added to the Match class are specified here.
+        For the attributes of the Match base class, see Match.
+
+    Attributes:
+        winner (str): The name of the player who won the match.
+        loser (str): The name of the player who lost the match.
+        stats (Optional[dict[str to MatchStats]]): A dictionary mapping player
+            names to their MatchStats object for this match.
+        points (Optional[List[Point]]): A list of the points played in the
+            match, if available.
+    """
 
     def __init__(self, p1, p2, date, winner, surface=None, stats=None,
                  points=None, tournament_name=None):
@@ -63,6 +105,13 @@ class CompletedMatch(Match):
         self.loser = self.p2 if self.winner == self.p1 else self.p1
 
     def to_dict(self):
+        """Converts the CompletedMatch object to a dictionary representation.
+
+        Returns:
+            dict: A dictionary containing the information from Match's to_dict
+            function, adding information about the winner and loser, as well as
+            serve and return points won, if available.
+        """
 
         parent_dict = super(CompletedMatch, self).to_dict()
 
