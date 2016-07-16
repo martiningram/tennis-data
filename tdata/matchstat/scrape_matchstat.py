@@ -55,6 +55,8 @@ class MatchStatScraper(object):
 
         soup = BeautifulSoup(page, 'html.parser')
 
+        surface = None
+
         for entry in soup.find_all('tr', class_="date h2h-entry"):
 
             cur_link = entry.find('td', class_='tmt').find('a').get('href')
