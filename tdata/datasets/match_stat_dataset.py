@@ -1,10 +1,9 @@
 import glob
+import numpy as np
 import pandas as pd
 
 from pathlib import Path
-from collections import defaultdict
 from tdata.datasets.dataset import Dataset
-from tdata.datasets.match import CompletedMatch
 from tdata.datasets.match_stats import MatchStats
 
 
@@ -28,10 +27,21 @@ class MatchStatDataset(Dataset):
 
         self.data_including_no_stats = concatenated
 
-        # Drop those without stats
-        concatenated = concatenated.dropna(subset=['winner_serve_1st_won'])
+        # Drop those without stats & round
+        concatenated = concatenated.dropna(
+            subset=['winner_serve_1st_won', 'round'])
+
         concatenated = concatenated[
             concatenated['winner_serve_1st_attempts'] > 0]
+
+        # Drop retirements
+        concatenated = concatenated[~concatenated['score'].str.contains('Ret.')]
+
+        # Drop qualifying (for now)
+        concatenated = concatenated[~(concatenated['round'].str.contains('FQ'))]
+
+        # Drop doubles
+        concatenated = concatenated[~(concatenated['winner'].str.contains('/'))]
 
         stats = self.calculate_stats_df(concatenated)
 
@@ -39,6 +49,7 @@ class MatchStatDataset(Dataset):
 
         self.by_players = concatenated.set_index(['winner', 'loser'],
                                                  drop=False)
+
         self.full_df = concatenated
 
     def get_stats_df(self):
@@ -49,7 +60,7 @@ class MatchStatDataset(Dataset):
 
         return self.by_players
 
-    def calculate_stats_df(self, df):
+    def calculate_percentages(self, df, add_dfs=True):
 
         results = dict()
 
@@ -59,31 +70,77 @@ class MatchStatDataset(Dataset):
             # agree with Sackmann's results, so perhaps there is some issue
             # with double faults / aces that needs to be accounted for.
 
+            if add_dfs:
+
+                first_serve_pct_denom = (
+                    df['{}_serve_1st_attempts'.format(role)] +
+                    df['{}_double_faults'.format(role)])
+
+                second_serve_pct_denom = (
+                    df['{}_serve_2nd_total'.format(role)] +
+                    df['{}_double_faults'.format(role)])
+
+            else:
+
+                first_serve_pct_denom = (
+                    df['{}_serve_1st_attempts'.format(role)])
+
+                second_serve_pct_denom = (
+                    df['{}_serve_2nd_total'.format(role)])
+
             results['{}_first_serve_pct'.format(role)] = (
                 df['{}_serve_1st_total'.format(role)] / (
-                    df['{}_serve_1st_attempts'.format(role)]))
+                    first_serve_pct_denom))
+
+            results['{}_second_serve_won_pct'.format(role)] = (
+                df['{}_serve_2nd_won'.format(role)] / (
+                    second_serve_pct_denom))
 
             results['{}_first_serve_won_pct'.format(role)] = (
                 df['{}_serve_1st_won'.format(role)] /
                 df['{}_serve_1st_total'.format(role)])
 
-            results['{}_second_serve_won_pct'.format(role)] = (
-                df['{}_serve_2nd_won'.format(role)] / (
-                    df['{}_serve_2nd_total'.format(role)]))
+            fsp = results['{}_first_serve_pct'.format(role)]
+            fsw = results['{}_first_serve_won_pct'.format(role)]
+            ssw = results['{}_second_serve_won_pct'.format(role)]
+
+            results['{}_serve_points_won_pct'.format(role)] = (
+                fsp * fsw + (1 - fsp) * ssw)
 
             results['{}_return_points_won_pct'.format(role)] = (
                 df['{}_return_points_won'.format(role)] /
                 df['{}_return_points_total'.format(role)])
 
+        return pd.DataFrame(results, index=df.index)
+
+    def calculate_stats_df(self, df):
+
+        results = self.calculate_percentages(df, add_dfs=True)
+
+        results = results.dropna(subset=['loser_return_points_won_pct'])
+
+        df = df.loc[results.index]
+
         # Try using potentially more reliable return info instead of that
         # calculated above:
-        results['winner_serve_points_won_pct'] = (
+        alt_w_spw = (
             1 - results['loser_return_points_won_pct'])
 
-        results['loser_serve_points_won_pct'] = (
+        alt_l_spw = (
             1 - results['winner_return_points_won_pct'])
 
-        results = pd.DataFrame(results)
+        # Try to correct:
+        faulty_rows = (
+            (np.abs(results['winner_serve_points_won_pct'] - alt_w_spw)
+            > 0.005) |
+            (np.abs(results['loser_serve_points_won_pct'] - alt_l_spw)
+             > 0.005))
+
+        to_recalc = df[faulty_rows]
+
+        to_recalc = self.calculate_percentages(to_recalc, add_dfs=False)
+
+        results.loc[to_recalc.index] = to_recalc
 
         return results
 

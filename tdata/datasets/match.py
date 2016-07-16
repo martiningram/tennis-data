@@ -123,7 +123,7 @@ class CompletedMatch(Match):
                 'spw_winner': self.stats[self.winner].pct_won_serve,
                 'spw_loser': self.stats[self.loser].pct_won_serve,
                 'rpw_winner': self.stats[self.winner].pct_won_return,
-                'rpw_loser': self.stats[self.losser].pct_won_return})
+                'rpw_loser': self.stats[self.loser].pct_won_return})
 
         return parent_dict
 

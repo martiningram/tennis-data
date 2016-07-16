@@ -4,7 +4,7 @@ import json
 import urllib2
 import logging
 import pandas as pd
-import datetime
+import cPickle as pkl
 
 from datetime import date
 from bs4 import BeautifulSoup
@@ -30,6 +30,47 @@ class MatchStatScraper(object):
     def __init__(self):
 
         self.cache_path = 'data/cache/'
+
+        self.tournament_surfaces = dict()
+
+        if os.path.isfile(self.cache_path + 'surfaces.pkl'):
+
+            self.tournament_surfaces = pkl.load(
+                open(self.cache_path + 'surfaces.pkl', 'rb'))
+
+    def find_surface(self, p1, p2, tournament_link):
+
+        if tournament_link in self.tournament_surfaces:
+            return self.tournament_surfaces[tournament_link]
+
+        # Find h2h:
+        base_link = 'https://matchstat.com/tennis/h2h-odds-bets/'
+
+        p1_alt = p1.replace(' ', '%20')
+        p2_alt = p2.replace(' ', '%20')
+
+        h2h_link = base_link + p1_alt + '/' + p2_alt
+
+        page = self.get_page(h2h_link)
+
+        soup = BeautifulSoup(page, 'html.parser')
+
+        for entry in soup.find_all('tr', class_="date h2h-entry"):
+
+            cur_link = entry.find('td', class_='tmt').find('a').get('href')
+
+            if cur_link != tournament_link:
+                continue
+
+            surface = entry.find('span', class_=re.compile('label*')).string
+
+        self.tournament_surfaces[tournament_link] = surface
+
+        # Update the pickle:
+        pkl.dump(self.tournament_surfaces,
+                 open(self.cache_path + 'surfaces.pkl', 'wb'))
+
+        return surface
 
     def get_calendar_link(self, year):
         """Helper function returning link to calendar site.
@@ -271,6 +312,12 @@ class MatchStatScraper(object):
             cur_results.update({'winner': winner_name,
                                 'loser': loser_name})
 
+            # Fetch the surface:
+            surface = self.find_surface(
+                winner_name, loser_name, tournament_link)
+
+            cur_results.update({'surface': surface})
+
             cur_results.update(self.get_odds(match_data))
 
             # Extract the score
@@ -383,12 +430,17 @@ class MatchStatScraper(object):
 
         return all_dfs
 
+
 if __name__ == '__main__':
 
     scraper = MatchStatScraper()
 
-    for year in [2016]:
+    print(scraper.find_surface(
+        'Roger Federer', 'Rafael Nadal',
+        'https://matchstat.com/tennis/tournaments/m/Basel/2015'))
 
-        all_data = scraper.scrape_all(year, t_type='atp')
-        all_data.to_csv('data/year_csvs/{}_atp.csv'.format(year),
-                        encoding='utf-8')
+    # for year in [2016]:
+
+    #    all_data = scraper.scrape_all(year, t_type='atp')
+    #    all_data.to_csv('data/year_csvs/{}_atp.csv'.format(year),
+    #                    encoding='utf-8')
