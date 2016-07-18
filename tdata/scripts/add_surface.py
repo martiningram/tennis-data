@@ -34,6 +34,9 @@ for csv in csvs:
         cur_matches = by_tourney.loc[t]
         sample_match = cur_matches.iloc[0]
 
+        if 'winner' not in sample_match:
+            continue
+
         surface = scraper.find_surface(
             sample_match.winner, sample_match.loser, t)
 

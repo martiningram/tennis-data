@@ -43,6 +43,9 @@ class MatchStatDataset(Dataset):
         # Drop doubles
         concatenated = concatenated[~(concatenated['winner'].str.contains('/'))]
 
+        # Add round number
+        concatenated['round_number'] = self.make_round_number(concatenated)
+
         stats = self.calculate_stats_df(concatenated)
 
         concatenated = pd.concat([concatenated, stats], axis=1)
@@ -51,6 +54,15 @@ class MatchStatDataset(Dataset):
                                                  drop=False)
 
         self.full_df = concatenated
+
+    def make_round_number(self, df):
+
+        substitutions = {'R128': 0, 'R64': 1, 'R32': 2, 'R16': 3, 'QF': 4,
+                         'SF': 5, 'F': 6}
+
+        round_number = df['round'].replace(substitutions)
+
+        return round_numbers
 
     def get_stats_df(self):
 

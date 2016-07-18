@@ -14,13 +14,15 @@ class Match(object):
             is played in.
     """
 
-    def __init__(self, p1, p2, date, surface=None, tournament_name=None):
+    def __init__(self, p1, p2, date, surface=None, tournament_name=None,
+                 tournament_round=None):
 
         self.p1 = p1
         self.p2 = p2
         self.date = date
         self.surface = surface
         self.tournament_name = tournament_name
+        self.tournament_round = tournament_round
 
     def get_opponent(self, player):
         """Returns the player faced by the player given.
@@ -87,11 +89,11 @@ class CompletedMatch(Match):
     """
 
     def __init__(self, p1, p2, date, winner, surface=None, stats=None,
-                 points=None, tournament_name=None):
+                 points=None, tournament_name=None, tournament_round=None):
 
         super(CompletedMatch, self).__init__(
             p1=p1, p2=p2, date=date, surface=surface,
-            tournament_name=tournament_name)
+            tournament_name=tournament_name, tournament_round=tournament_round)
 
         assert(winner in [p1, p2])
 

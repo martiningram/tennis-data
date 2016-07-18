@@ -8,7 +8,7 @@ from tdata.datasets.match_stats import MatchStats
 
 class SackmannDataset(Dataset):
 
-    def __init__(self):
+    def __init__(self, stat_matches_only=True):
 
         super(SackmannDataset, self).__init__()
 
@@ -27,8 +27,10 @@ class SackmannDataset(Dataset):
         big_df = pd.concat([pd.read_csv(x) for x in all_csvs],
                            ignore_index=True)
 
-        # Keep only those with stats:
-        big_df = big_df.dropna(subset=['w_1stWon'])
+        if stat_matches_only:
+            # Keep only those with stats:
+            big_df = big_df.dropna(subset=['w_1stWon'])
+
         big_df = self.rename_cols(big_df)
 
         big_df['start_date'] = pd.to_datetime(
@@ -40,8 +42,23 @@ class SackmannDataset(Dataset):
         # Concatenate
         big_df = pd.concat([big_df, stats_df], axis=1)
 
+        # Sort by date
+        big_df = big_df.sort_values('start_date')
+
+        # Add round number:
+        big_df['round_number'] = self.make_round_number(big_df)
+
         self.full_df = big_df
         self.by_players = big_df.set_index(['winner', 'loser'], drop=False)
+
+    def make_round_number(self, df):
+
+        substitutions = {'R128': 0, 'R64': 1, 'R32': 2, 'R16': 3, 'QF': 4,
+                         'SF': 5, 'F': 6}
+
+        round_numbers = df['round'].replace(substitutions)
+
+        return round_numbers
 
     def get_stats_df(self):
 

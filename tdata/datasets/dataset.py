@@ -2,7 +2,7 @@ import datetime
 import pandas as pd
 
 from abc import abstractmethod
-from datetime import timedelta, date
+from datetime import timedelta, date, datetime
 from tdata.datasets.match import CompletedMatch
 
 
@@ -20,7 +20,7 @@ class Dataset(object):
         self.tour_averages = dict()
 
     def get_player_matches(self, player_name, min_date=None, max_date=None,
-                           surface=None):
+                           surface=None, before_round=None):
         """
         Fetches a player's matches, filtered by date and surface.
 
@@ -60,15 +60,26 @@ class Dataset(object):
                     cur_matches = cur_matches.set_index(
                         'start_date', drop=False)
 
+                    cur_matches = cur_matches.sort_index()
+
                 # Reduce to date range:
                 if min_date is not None:
 
-                    cur_matches = cur_matches[str(min_date):]
+                    cur_matches = cur_matches[min_date:]
 
                 if max_date is not None:
 
-                    cur_matches = cur_matches[:str(
-                        max_date - timedelta(days=1))]
+                    if before_round is None:
+
+                        cur_matches = cur_matches[:(max_date -
+                                                    timedelta(days=1))]
+
+                    else:
+
+                        cur_matches = cur_matches[:max_date]
+
+                        cur_matches = cur_matches[
+                            cur_matches['round_number'] < before_round]
 
                 if len(cur_matches.shape) == 1:
 
@@ -104,7 +115,8 @@ class Dataset(object):
                         p1=player_name, p2=opponent, date=row['start_date'],
                         winner=row['winner'], stats=stats,
                         tournament_name=row['tournament_name'],
-                        surface=cur_surface)
+                        surface=cur_surface,
+                        tournament_round=row['round_number'])
 
                     all_matches.append(match)
 
@@ -114,6 +126,9 @@ class Dataset(object):
                                      max_date=None):
         """Returns the average probability of winning a point on serve for
         the tournament given.
+
+        Note:
+            TODO: Could accelerate this with an index.
 
         Args:
             tournament_name (str): The name of the tournament to find the
@@ -213,8 +228,8 @@ class Dataset(object):
             match = CompletedMatch(
                 p1=row['winner'], p2=row['loser'], date=row['start_date'],
                 winner=row['winner'], stats=stats,
-                tournament_name=row['tournament_name'],
-                surface=cur_surface)
+                tournament_name=row['tournament_name'], surface=cur_surface,
+                tournament_round=row['round_number'])
 
             matches.append(match)
 
