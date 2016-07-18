@@ -76,10 +76,17 @@ class Dataset(object):
 
                     else:
 
-                        cur_matches = cur_matches[:max_date]
+                        definitely_before = cur_matches[:(max_date -
+                                                        timedelta(days=1))]
 
-                        cur_matches = cur_matches[
-                            cur_matches['round_number'] < before_round]
+                        maybe_before = cur_matches[max_date:max_date]
+
+                        also_before = maybe_before[
+                            maybe_before['round_number'] < before_round]
+
+                        cur_matches = pd.concat([definitely_before,
+                                                 also_before], axis=0)
+
 
                 if len(cur_matches.shape) == 1:
 

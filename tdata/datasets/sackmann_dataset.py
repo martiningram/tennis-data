@@ -42,11 +42,11 @@ class SackmannDataset(Dataset):
         # Concatenate
         big_df = pd.concat([big_df, stats_df], axis=1)
 
-        # Sort by date
-        big_df = big_df.sort_values('start_date')
-
         # Add round number:
         big_df['round_number'] = self.make_round_number(big_df)
+
+        # Sort by date
+        big_df = big_df.sort_values(['start_date', 'round_number'])
 
         self.full_df = big_df
         self.by_players = big_df.set_index(['winner', 'loser'], drop=False)

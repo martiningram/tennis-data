@@ -60,7 +60,7 @@ class MatchStatDataset(Dataset):
         substitutions = {'R128': 0, 'R64': 1, 'R32': 2, 'R16': 3, 'QF': 4,
                          'SF': 5, 'F': 6}
 
-        round_number = df['round'].replace(substitutions)
+        round_numbers = df['round'].replace(substitutions)
 
         return round_numbers
 
