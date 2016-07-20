@@ -28,13 +28,16 @@ class SackmannDataset(Dataset):
                            ignore_index=True)
 
         if stat_matches_only:
-            # Keep only those with stats:
-            big_df = big_df.dropna(subset=['w_1stWon'])
+            # Keep only those with stats and score:
+            big_df = big_df.dropna(subset=['w_1stWon', 'score'])
 
         big_df = self.rename_cols(big_df)
 
         big_df['start_date'] = pd.to_datetime(
             big_df['start_date'], format='%Y%m%d')
+
+        # Drop retirements
+        big_df = big_df[~big_df['score'].str.contains('RET')]
 
         # Find stats
         stats_df = self.calculate_stats_df(big_df)

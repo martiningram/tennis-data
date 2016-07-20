@@ -210,9 +210,8 @@ class Dataset(object):
 
         subset = self.get_stats_df()
 
-        subset = self.reduce_to_subset(
-            subset, min_date=min_date, max_date=max_date, surface=surface,
-            before_round=before_round)
+        subset = self.reduce_to_subset(subset, min_date=min_date,
+                                       max_date=max_date, surface=surface)
 
         if len(subset) == 0:
             return []

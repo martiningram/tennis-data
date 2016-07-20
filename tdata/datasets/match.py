@@ -14,11 +14,12 @@ class Match(object):
             is played in.
     """
 
-    def __init__(self, p1, p2, date, surface=None, tournament_name=None,
-                 tournament_round=None):
+    def __init__(self, p1, p2, date, best_of_five, surface=None,
+                 tournament_name=None, tournament_round=None):
 
         self.p1 = p1
         self.p2 = p2
+        self.bo5 = best_of_five
         self.date = date
         self.surface = surface
         self.tournament_name = tournament_name
@@ -93,7 +94,7 @@ class CompletedMatch(Match):
                  odds=None):
 
         super(CompletedMatch, self).__init__(
-            p1=p1, p2=p2, date=date, surface=surface,
+            p1=p1, p2=p2, best_of_five=score.bo5, date=date, surface=surface,
             tournament_name=tournament_name, tournament_round=tournament_round)
 
         assert(winner in [p1, p2])
