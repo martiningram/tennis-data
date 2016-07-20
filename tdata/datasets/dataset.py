@@ -4,6 +4,7 @@ import pandas as pd
 from abc import abstractmethod
 from datetime import timedelta, date, datetime
 from tdata.datasets.match import CompletedMatch
+from tdata.datasets.parsed_string_score import ParsedStringScore
 
 
 class Dataset(object):
@@ -18,6 +19,59 @@ class Dataset(object):
     def __init__(self):
 
         self.tour_averages = dict()
+
+    def reduce_to_subset(self, df, min_date=None, max_date=None, surface=None,
+                         before_round=None):
+
+        if min_date is not None or max_date is not None:
+
+            df = df.set_index('start_date', drop=False)
+            df = df.sort_index()
+
+        # Reduce to date range:
+        if min_date is not None:
+
+            df = df[min_date:]
+
+        if max_date is not None:
+
+            if before_round is None:
+
+                # Pick only matches before the current date
+                df = df[:(max_date - timedelta(days=1))]
+
+            else:
+
+                # Add matches before current round
+
+                previous_date = df[:(max_date - timedelta(days=1))]
+                same_date = df[max_date:max_date]
+
+                earlier_round = same_date[same_date['round_number'] <
+                                          before_round]
+
+                df = pd.concat([previous_date, earlier_round], axis=0)
+
+        if len(df.shape) == 1:
+
+            # Turn single match into DataFrame
+            df = pd.DataFrame([df])
+
+        if surface is not None:
+
+            df = df.set_index('surface', drop=False)
+
+            try:
+
+                df = df.loc[[surface]]
+
+            except KeyError:
+
+                # No matching matches. Return empty DataFrame.
+
+                return pd.DataFrame()
+
+        return df
 
     def get_player_matches(self, player_name, min_date=None, max_date=None,
                            surface=None, before_round=None):
@@ -51,87 +105,13 @@ class Dataset(object):
 
             except KeyError:
 
-                cur_matches = pd.DataFrame()
+                continue
 
-            if len(cur_matches) > 0:
+            subset = self.reduce_to_subset(
+                cur_matches, min_date=min_date, max_date=max_date,
+                before_round=before_round, surface=surface)
 
-                if min_date is not None or max_date is not None:
-
-                    cur_matches = cur_matches.set_index(
-                        'start_date', drop=False)
-
-                    cur_matches = cur_matches.sort_index()
-
-                # Reduce to date range:
-                if min_date is not None:
-
-                    cur_matches = cur_matches[min_date:]
-
-                if max_date is not None:
-
-                    if before_round is None:
-
-                        cur_matches = cur_matches[:(max_date -
-                                                    timedelta(days=1))]
-
-                    else:
-
-                        definitely_before = cur_matches[:(max_date -
-                                                        timedelta(days=1))]
-
-                        maybe_before = cur_matches[max_date:max_date]
-
-                        also_before = maybe_before[
-                            maybe_before['round_number'] < before_round]
-
-                        cur_matches = pd.concat([definitely_before,
-                                                 also_before], axis=0)
-
-
-                if len(cur_matches.shape) == 1:
-
-                    # Turn into DataFrame
-                    cur_matches = pd.DataFrame([cur_matches])
-
-                if surface is not None:
-
-                    cur_matches = cur_matches.set_index('surface', drop=False)
-
-                    try:
-
-                        cur_matches = cur_matches.loc[[surface]]
-
-                    except KeyError:
-
-                        return all_matches
-
-                for _, row in cur_matches.iterrows():
-
-                    stats = self.calculate_stats(
-                        row['winner'], row['loser'], row)
-
-                    opponent = (row['winner'] if player_name == row['loser']
-                                else row['loser'])
-
-                    if 'surface' in row.index:
-                        cur_surface = row['surface']
-                    else:
-                        cur_surface = None
-
-                    if 'odds_winner' in row.index:
-                        odds = {row['winner']: row['winner_odds'],
-                                row['loser']: row['loser_odds']}
-                    else:
-                        odds = None
-
-                    match = CompletedMatch(
-                        p1=player_name, p2=opponent, date=row['start_date'],
-                        winner=row['winner'], stats=stats,
-                        tournament_name=row['tournament_name'],
-                        surface=cur_surface,
-                        tournament_round=row['round_number'], odds=odds)
-
-                    all_matches.append(match)
+            all_matches.extend(self.turn_into_matches(subset))
 
         return sorted(all_matches, key=lambda x: x.date)
 
@@ -175,6 +155,41 @@ class Dataset(object):
 
         return averages.mean()
 
+    def turn_into_matches(self, df):
+
+        """Converts the DataFrame given into a list of CompletedMatches."""
+
+        matches = list()
+
+        for _, row in df.iterrows():
+
+            stats = self.calculate_stats(
+                row['winner'], row['loser'], row)
+
+            score = ParsedStringScore(
+                row['score'], row['winner'], row['loser'])
+
+            if 'surface' not in row:
+                cur_surface = None
+            else:
+                cur_surface = row['surface']
+
+            if 'odds_winner' in row.index:
+                odds = {row['winner']: row['winner_odds'],
+                        row['loser']: row['loser_odds']}
+            else:
+                odds = None
+
+            match = CompletedMatch(
+                p1=row['winner'], p2=row['loser'], date=row['start_date'],
+                winner=row['winner'], stats=stats,
+                tournament_name=row['tournament_name'], surface=cur_surface,
+                tournament_round=row['round_number'], odds=odds, score=score)
+
+            matches.append(match)
+
+        return matches
+
     def get_matches_between(self, min_date=None, max_date=None, surface=None):
         """Fetches matches in the dataset, optionally filtered by date and
         surface.
@@ -193,64 +208,16 @@ class Dataset(object):
             given.
         """
 
-        matches = list()
-
         subset = self.get_stats_df()
 
-        try:
-
-            if min_date is not None or max_date is not None:
-
-                subset = subset.set_index('start_date', drop=False)
-
-            if min_date is not None:
-
-                subset = subset[str(min_date):]
-
-            if max_date is not None:
-
-                subset = subset[:str(max_date - timedelta(days=1))]
-
-            if surface is not None:
-
-                if 'surface' not in subset.columns:
-                    print('Surface information not in this dataset')
-
-                subset = subset.set_index('surface', drop=False)
-                subset = subset.loc[[surface]]
-
-        except KeyError:
-
-            # Something wasn't in the index, which means there are no matches
-            # satisfying the criteria given.
-            return matches
+        subset = self.reduce_to_subset(
+            subset, min_date=min_date, max_date=max_date, surface=surface,
+            before_round=before_round)
 
         if len(subset) == 0:
-            return matches
+            return []
 
-        for _, row in subset.iterrows():
-
-            stats = self.calculate_stats(
-                row['winner'], row['loser'], row)
-
-            if 'surface' not in row:
-                cur_surface = None
-            else:
-                cur_surface = row['surface']
-
-            if 'odds_winner' in row.index:
-                odds = {row['winner']: row['winner_odds'],
-                        row['loser']: row['loser_odds']}
-            else:
-                odds = None
-
-            match = CompletedMatch(
-                p1=row['winner'], p2=row['loser'], date=row['start_date'],
-                winner=row['winner'], stats=stats,
-                tournament_name=row['tournament_name'], surface=cur_surface,
-                tournament_round=row['round_number'], odds=odds)
-
-            matches.append(match)
+        matches = self.turn_into_matches(subset)
 
         return matches
 

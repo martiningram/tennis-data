@@ -88,7 +88,7 @@ class CompletedMatch(Match):
             match, if available.
     """
 
-    def __init__(self, p1, p2, date, winner, surface=None, stats=None,
+    def __init__(self, p1, p2, date, winner, score, surface=None, stats=None,
                  points=None, tournament_name=None, tournament_round=None,
                  odds=None):
 
@@ -107,6 +107,7 @@ class CompletedMatch(Match):
         self.winner = winner
         self.loser = self.p2 if self.winner == self.p1 else self.p1
         self.odds = odds
+        self.score = score
 
     def to_dict(self):
         """Converts the CompletedMatch object to a dictionary representation.
@@ -139,8 +140,9 @@ class CompletedMatch(Match):
 
     def __str__(self):
 
-        string = '{} beat {} in match on {} in {}.'.format(
-            self.winner, self.loser, self.date, self.tournament_name)
+        string = '{} beat {} {} in match on {} in {}.'.format(
+            self.winner, self.loser, self.score, self.date,
+            self.tournament_name)
 
         if self.stats is not None:
             string += ' '
