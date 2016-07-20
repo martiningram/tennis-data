@@ -118,12 +118,18 @@ class Dataset(object):
                     else:
                         cur_surface = None
 
+                    if 'odds_winner' in row.index:
+                        odds = {row['winner']: row['winner_odds'],
+                                row['loser']: row['loser_odds']}
+                    else:
+                        odds = None
+
                     match = CompletedMatch(
                         p1=player_name, p2=opponent, date=row['start_date'],
                         winner=row['winner'], stats=stats,
                         tournament_name=row['tournament_name'],
                         surface=cur_surface,
-                        tournament_round=row['round_number'])
+                        tournament_round=row['round_number'], odds=odds)
 
                     all_matches.append(match)
 
@@ -232,11 +238,17 @@ class Dataset(object):
             else:
                 cur_surface = row['surface']
 
+            if 'odds_winner' in row.index:
+                odds = {row['winner']: row['winner_odds'],
+                        row['loser']: row['loser_odds']}
+            else:
+                odds = None
+
             match = CompletedMatch(
                 p1=row['winner'], p2=row['loser'], date=row['start_date'],
                 winner=row['winner'], stats=stats,
                 tournament_name=row['tournament_name'], surface=cur_surface,
-                tournament_round=row['round_number'])
+                tournament_round=row['round_number'], odds=odds)
 
             matches.append(match)
 

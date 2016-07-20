@@ -52,4 +52,8 @@ class TestSackmannDataset(object):
                 'Roger Federer', min_date=date(2015, 1, 1),
                 max_date=date(2015, 1, 19), before_round=2)
 
+            for match in matches:
+
+                print(match)
+
             assert(len(matches) == 6)

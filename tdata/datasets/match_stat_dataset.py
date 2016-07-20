@@ -50,6 +50,8 @@ class MatchStatDataset(Dataset):
 
         concatenated = pd.concat([concatenated, stats], axis=1)
 
+        concatenated = concatenated.sort_values(['start_date', 'round_number'])
+
         self.by_players = concatenated.set_index(['winner', 'loser'],
                                                  drop=False)
 

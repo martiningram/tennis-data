@@ -68,7 +68,7 @@ class Match(object):
 
         for match in matches:
 
-            results.append(match.to_dict)
+            results.append(match.to_dict())
 
         return pd.DataFrame(results)
 
@@ -89,7 +89,8 @@ class CompletedMatch(Match):
     """
 
     def __init__(self, p1, p2, date, winner, surface=None, stats=None,
-                 points=None, tournament_name=None, tournament_round=None):
+                 points=None, tournament_name=None, tournament_round=None,
+                 odds=None):
 
         super(CompletedMatch, self).__init__(
             p1=p1, p2=p2, date=date, surface=surface,
@@ -105,6 +106,7 @@ class CompletedMatch(Match):
         self.points = points
         self.winner = winner
         self.loser = self.p2 if self.winner == self.p1 else self.p1
+        self.odds = odds
 
     def to_dict(self):
         """Converts the CompletedMatch object to a dictionary representation.
@@ -127,6 +129,12 @@ class CompletedMatch(Match):
                 'rpw_winner': self.stats[self.winner].pct_won_return,
                 'rpw_loser': self.stats[self.loser].pct_won_return})
 
+        if self.odds is not None:
+
+            parent_dict.update({
+                'odds_winner': self.odds[self.winner],
+                'odds_loser': self.odds[self.loser]})
+
         return parent_dict
 
     def __str__(self):
@@ -138,6 +146,12 @@ class CompletedMatch(Match):
             string += ' '
             for player in self.stats:
                 string += str(self.stats[player])
+                string += ' '
+
+        if self.odds is not None:
+            string += ' '
+            for player in self.odds:
+                string += player + ' ' + str(self.odds[player])
                 string += ' '
 
         return string.strip()

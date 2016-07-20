@@ -32,6 +32,10 @@ for csv in csvs:
         print('Processing {}'.format(t))
 
         cur_matches = by_tourney.loc[t]
+
+        if len(cur_matches.shape) < 2:
+            continue
+
         sample_match = cur_matches.iloc[0]
 
         if 'winner' not in sample_match:
