@@ -37,6 +37,9 @@ class MatchStatDataset(Dataset):
         # Drop retirements
         concatenated = concatenated[~concatenated['score'].str.contains('Ret.')]
 
+        # Drop walkovers
+        concatenated = concatenated[~concatenated['score'].str.contains('WO|,')]
+
         # Drop qualifying (for now)
         concatenated = concatenated[~(concatenated['round'].str.contains('FQ'))]
 
@@ -49,6 +52,8 @@ class MatchStatDataset(Dataset):
         stats = self.calculate_stats_df(concatenated)
 
         concatenated = pd.concat([concatenated, stats], axis=1)
+
+        concatenated = concatenated.dropna(subset=['winner_serve_points_won_pct'])
 
         concatenated = concatenated.sort_values(['start_date', 'round_number'])
 

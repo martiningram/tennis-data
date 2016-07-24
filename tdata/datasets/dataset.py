@@ -4,7 +4,8 @@ import pandas as pd
 from abc import abstractmethod
 from datetime import timedelta, date, datetime
 from tdata.datasets.match import CompletedMatch
-from tdata.datasets.parsed_string_score import ParsedStringScore
+from tdata.datasets.parsed_string_score import ParsedStringScore, \
+    BadFormattingException
 
 
 class Dataset(object):
@@ -166,8 +167,15 @@ class Dataset(object):
             stats = self.calculate_stats(
                 row['winner'], row['loser'], row)
 
-            score = ParsedStringScore(
-                row['score'], row['winner'], row['loser'])
+            try:
+                score = ParsedStringScore(
+                    row['score'], row['winner'], row['loser'])
+            except BadFormattingException:
+                continue
+
+            # Must have at least two sets
+            if len(score.sets) < 2:
+                continue
 
             if 'surface' not in row:
                 cur_surface = None

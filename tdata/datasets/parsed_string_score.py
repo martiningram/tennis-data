@@ -79,22 +79,34 @@ class ParsedStringScore(object):
             was_tb = (p1_games == 7 and games[1][0] == '6') or \
                 (p1_games == 6 and games[1][0] == '7')
 
-            if was_tb:
+            try:
 
-                p2_games = 6 if p1_games == 7 else 7
+                if was_tb:
 
-                # Find the tiebreak score:
-                bracket_beg = cur_set.find('(')
-                bracket_end = cur_set.find(')')
-                tb_result = cur_set[bracket_beg + 1:bracket_end]
+                    p2_games = 6 if p1_games == 7 else 7
 
-                tb_score = int(tb_result)
+                    # Find the tiebreak score (and allow it to be missing):
+                    bracket_beg = cur_set.find('(')
 
-            else:
+                    if bracket_beg == -1:
 
-                # The number of games for p2 is just the second part of the
-                # split:
-                p2_games = int(games[1])
+                        tb_score = -1
+                    else:
+
+                        bracket_end = cur_set.find(')')
+                        tb_result = cur_set[bracket_beg + 1:bracket_end]
+
+                        tb_score = int(tb_result)
+
+                else:
+
+                    # The number of games for p2 is just the second part of the
+                    # split:
+                    p2_games = int(games[1])
+
+            except ValueError as v:
+
+                raise BadFormattingException(string_score)
 
             # Put things together and record:
             cur_set = {'score': (p1_games, p2_games),

@@ -24,6 +24,7 @@ class Match(object):
         self.surface = surface
         self.tournament_name = tournament_name
         self.tournament_round = tournament_round
+        self.opponent_dict = {self.p1: self.p2, self.p2: self.p1}
 
     def get_opponent(self, player):
         """Returns the player faced by the player given.
@@ -36,9 +37,7 @@ class Match(object):
             not present in the match, the program will exit.
         """
 
-        assert(player in [self.p1, self.p2])
-
-        return self.p1 if player == self.p2 else self.p2
+        return self.opponent_dict[player]
 
     def __str__(self):
 

@@ -36,6 +36,9 @@ class SackmannDataset(Dataset):
         big_df['start_date'] = pd.to_datetime(
             big_df['start_date'], format='%Y%m%d')
 
+        # Drop matches without scores
+        big_df = big_df.dropna(subset=['score'])
+
         # Drop retirements
         big_df = big_df[~big_df['score'].str.contains('RET')]
 

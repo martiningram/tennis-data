@@ -33,11 +33,6 @@ class MatchStatScraper(object):
 
         self.tournament_surfaces = dict()
 
-        if os.path.isfile(self.cache_path + 'surfaces.pkl'):
-
-            self.tournament_surfaces = pkl.load(
-                open(self.cache_path + 'surfaces.pkl', 'rb'))
-
     def find_surface(self, p1, p2, tournament_link):
 
         if tournament_link in self.tournament_surfaces:
@@ -51,12 +46,15 @@ class MatchStatScraper(object):
 
         h2h_link = base_link + p1_alt + '/' + p2_alt
 
+        logger.debug('Fetching page...')
         page = self.get_page(h2h_link)
+        logger.debug('Fetched page.')
 
         soup = BeautifulSoup(page, 'html.parser')
 
         surface = None
 
+        logger.debug('Parsing page...')
         for entry in soup.find_all('tr', class_="date h2h-entry"):
 
             cur_link = entry.find('td', class_='tmt').find('a').get('href')
@@ -66,11 +64,9 @@ class MatchStatScraper(object):
 
             surface = entry.find('span', class_=re.compile('label*')).string
 
-        self.tournament_surfaces[tournament_link] = surface
+        logger.debug('Parsed page.')
 
-        # Update the pickle:
-        pkl.dump(self.tournament_surfaces,
-                 open(self.cache_path + 'surfaces.pkl', 'wb'))
+        self.tournament_surfaces[tournament_link] = surface
 
         return surface
 
