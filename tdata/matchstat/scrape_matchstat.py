@@ -472,9 +472,14 @@ class MatchStatScraper(object):
             all_data.to_csv('data/year_csvs/{}_{}.csv'.format(year, t_type),
                             encoding='utf-8')
 
+
 if __name__ == '__main__':
 
     scraper = MatchStatScraper()
+
+    scraper.update(t_type='atp')
+
+    exit()
 
     for year in [2016]:
 
