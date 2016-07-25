@@ -9,7 +9,7 @@ from tdata.datasets.match_stats import MatchStats
 
 class MatchStatDataset(Dataset):
 
-    def __init__(self, t_type='atp'):
+    def __init__(self, t_type='atp', stat_matches_only=True):
 
         super(MatchStatDataset, self).__init__()
 
@@ -25,14 +25,17 @@ class MatchStatDataset(Dataset):
         concatenated = pd.concat(all_read, ignore_index=True)
         concatenated['start_date'] = pd.to_datetime(concatenated['start_date'])
 
-        self.data_including_no_stats = concatenated
+        # Drop matches without round (Davis Cup)
+        concatenated = concatenated.dropna(subset=['round'])
 
-        # Drop those without stats & round
-        concatenated = concatenated.dropna(
-            subset=['winner_serve_1st_won', 'round'])
+        # Drop those without stats
+        if stat_matches_only:
 
-        concatenated = concatenated[
-            concatenated['winner_serve_1st_attempts'] > 0]
+            concatenated = concatenated.dropna(
+                subset=['winner_serve_1st_won'])
+
+            concatenated = concatenated[
+                concatenated['winner_serve_1st_attempts'] > 0]
 
         # Drop retirements
         concatenated = concatenated[
@@ -57,8 +60,10 @@ class MatchStatDataset(Dataset):
 
         concatenated = pd.concat([concatenated, stats], axis=1)
 
-        concatenated = concatenated.dropna(
-            subset=['winner_serve_points_won_pct'])
+        if stat_matches_only:
+
+            concatenated = concatenated.dropna(
+                subset=['winner_serve_points_won_pct'])
 
         concatenated = concatenated.sort_values(['start_date', 'round_number'])
 
