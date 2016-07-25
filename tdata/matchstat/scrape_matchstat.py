@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import glob
 import urllib2
 import logging
 import pandas as pd
@@ -397,7 +398,8 @@ class MatchStatScraper(object):
                 cache_dir, tournament['tournament_name'].replace('/', ' '),
                 year)
 
-            if use_cache and os.path.isfile(cache_name):
+            if (use_cache and os.path.isfile(cache_name) and
+                    self.is_complete(cache_name)):
 
                 logger.info('Using cached csv.')
 
@@ -427,13 +429,55 @@ class MatchStatScraper(object):
 
         return all_dfs
 
+    def is_complete(self, cache_file):
+
+        cache = pd.read_csv(cache_file, index_col=0)
+
+        # If Davis Cup: likely up to date (not crucial if not as few matches)
+        davis_cup = 'DC WG' in cache_file
+        if davis_cup:
+            return True
+
+        # Discard doubles
+        cache = cache[~cache['winner'].str.contains('/')]
+
+        # Otherwise, must have a final
+        has_final = (cache['round'] == 'F').sum() > 0
+
+        return has_final
+
+    def update(self, t_type='atp'):
+
+        # Find most recent year csv
+        csvs = glob.glob('data/year_csvs/*{}.csv'.format(t_type))
+
+        # Extract the years
+        filenames = [os.path.split(x)[1] for x in csvs]
+        years = [int(x[:4]) for x in filenames]
+
+        if len(years) == 0:
+            most_recent = 1969
+        else:
+            most_recent = max(years)
+
+        logger.info('Updating from {} onwards.'.format(most_recent))
+
+        # Find current year:
+        cur_year = date.today().year
+
+        # Add one for range to work
+        for year in range(most_recent, cur_year + 1):
+
+            all_data = self.scrape_all(year, t_type)
+            all_data.to_csv('data/year_csvs/{}_{}.csv'.format(year, t_type),
+                            encoding='utf-8')
 
 if __name__ == '__main__':
 
     scraper = MatchStatScraper()
 
-    for year in range(1969, 2017):
+    for year in [2016]:
 
-        all_data = scraper.scrape_all(year, t_type='wta')
-        all_data.to_csv('data/year_csvs/{}_wta.csv'.format(year),
+        all_data = scraper.scrape_all(year, t_type='atp')
+        all_data.to_csv('data/year_csvs/{}_atp.csv'.format(year),
                         encoding='utf-8')
