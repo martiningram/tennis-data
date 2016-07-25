@@ -9,7 +9,7 @@ from tdata.datasets.match_stats import MatchStats
 
 class MatchStatDataset(Dataset):
 
-    def __init__(self):
+    def __init__(self, t_type='atp'):
 
         super(MatchStatDataset, self).__init__()
 
@@ -19,7 +19,7 @@ class MatchStatDataset(Dataset):
 
         # Get all csv filenames:
         all_csvs = glob.glob(
-            '{}/data/year_csvs/*.csv'.format(exec_dir))
+            '{}/data/year_csvs/*{}*.csv'.format(exec_dir, t_type))
 
         all_read = [pd.read_csv(x, index_col=0) for x in all_csvs]
         concatenated = pd.concat(all_read, ignore_index=True)
@@ -35,16 +35,20 @@ class MatchStatDataset(Dataset):
             concatenated['winner_serve_1st_attempts'] > 0]
 
         # Drop retirements
-        concatenated = concatenated[~concatenated['score'].str.contains('Ret.')]
+        concatenated = concatenated[
+            ~concatenated['score'].str.contains('Ret.')]
 
         # Drop walkovers
-        concatenated = concatenated[~concatenated['score'].str.contains('WO|,')]
+        concatenated = concatenated[
+            ~concatenated['score'].str.contains('WO|,')]
 
         # Drop qualifying (for now)
-        concatenated = concatenated[~(concatenated['round'].str.contains('FQ'))]
+        concatenated = concatenated[
+            ~(concatenated['round'].str.contains('FQ'))]
 
         # Drop doubles
-        concatenated = concatenated[~(concatenated['winner'].str.contains('/'))]
+        concatenated = concatenated[
+            ~(concatenated['winner'].str.contains('/'))]
 
         # Add round number
         concatenated['round_number'] = self.make_round_number(concatenated)
@@ -53,7 +57,8 @@ class MatchStatDataset(Dataset):
 
         concatenated = pd.concat([concatenated, stats], axis=1)
 
-        concatenated = concatenated.dropna(subset=['winner_serve_points_won_pct'])
+        concatenated = concatenated.dropna(
+            subset=['winner_serve_points_won_pct'])
 
         concatenated = concatenated.sort_values(['start_date', 'round_number'])
 
@@ -151,7 +156,7 @@ class MatchStatDataset(Dataset):
         # Try to correct:
         faulty_rows = (
             (np.abs(results['winner_serve_points_won_pct'] - alt_w_spw)
-            > 0.005) |
+             > 0.005) |
             (np.abs(results['loser_serve_points_won_pct'] - alt_l_spw)
              > 0.005))
 

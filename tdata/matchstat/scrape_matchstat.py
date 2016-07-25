@@ -4,7 +4,6 @@ import json
 import urllib2
 import logging
 import pandas as pd
-import cPickle as pkl
 
 from datetime import date
 from bs4 import BeautifulSoup
@@ -433,12 +432,8 @@ if __name__ == '__main__':
 
     scraper = MatchStatScraper()
 
-    print(scraper.find_surface(
-        'Roger Federer', 'Rafael Nadal',
-        'https://matchstat.com/tennis/tournaments/m/Basel/2015'))
+    for year in range(1969, 2017):
 
-    # for year in [2016]:
-
-    #    all_data = scraper.scrape_all(year, t_type='atp')
-    #    all_data.to_csv('data/year_csvs/{}_atp.csv'.format(year),
-    #                    encoding='utf-8')
+        all_data = scraper.scrape_all(year, t_type='wta')
+        all_data.to_csv('data/year_csvs/{}_wta.csv'.format(year),
+                        encoding='utf-8')
