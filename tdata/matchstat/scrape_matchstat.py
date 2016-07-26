@@ -434,11 +434,14 @@ class MatchStatScraper(object):
         cache = pd.read_csv(cache_file, index_col=0)
 
         # If Davis Cup: likely up to date (not crucial if not as few matches)
-        davis_cup = 'DC WG' in cache_file
-        if davis_cup:
+        dc_or_fc = 'DC WG' in cache_file or 'FC WG' in cache_file
+        if dc_or_fc:
             return True
 
         # Discard doubles
+        if 'winner' not in cache.columns:
+            return False
+
         cache = cache[~cache['winner'].str.contains('/')]
 
         # Otherwise, must have a final
@@ -477,7 +480,7 @@ if __name__ == '__main__':
 
     scraper = MatchStatScraper()
 
-    scraper.update(t_type='atp')
+    scraper.update(t_type='wta')
 
     exit()
 

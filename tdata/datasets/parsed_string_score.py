@@ -72,7 +72,14 @@ class ParsedStringScore(object):
                 raise BadFormattingException()
 
             # The first is definitely the number of games won by player 1:
-            p1_games = int(games[0])
+
+            try:
+
+                p1_games = int(games[0])
+
+            except ValueError:
+
+                raise BadFormattingException(string_score)
 
             # For p2, we need to check whether it went to a tiebreak:
             tb_score = None
@@ -104,7 +111,7 @@ class ParsedStringScore(object):
                     # split:
                     p2_games = int(games[1])
 
-            except ValueError as v:
+            except ValueError:
 
                 raise BadFormattingException(string_score)
 

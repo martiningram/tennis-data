@@ -43,7 +43,7 @@ class MatchStatDataset(Dataset):
 
         # Drop walkovers
         concatenated = concatenated[
-            ~concatenated['score'].str.contains('WO|,')]
+            ~concatenated['score'].str.contains('WO|,|Default')]
 
         # Drop qualifying (for now)
         concatenated = concatenated[
