@@ -115,7 +115,7 @@ class Dataset(object):
 
         # This will not return in order, but return all winning, then all
         # losing matches. Is it an issue? Check.
-        return itertools.chain(all_matches['winner'], all_matches['loser'])
+        return chain(all_matches['winner'], all_matches['loser'])
 
     def get_tournament_serve_average(self, tournament_name, min_date=None,
                                      max_date=None):

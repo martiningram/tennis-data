@@ -26,8 +26,7 @@ class MatchStatDataset(Dataset):
         if min_year is not None:
 
             all_csvs = [x for x in all_csvs if
-                        int(os.path.split(x)[1][:4]) >= min_year
-                        for x in all_csvs]
+                        int(os.path.split(x)[1][:4]) >= min_year]
 
         all_read = [pd.read_csv(x, index_col=0) for x in all_csvs]
         concatenated = pd.concat(all_read, ignore_index=True)
