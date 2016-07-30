@@ -1,5 +1,6 @@
 import os
 import re
+import ssl
 import json
 import glob
 import urllib2
@@ -204,7 +205,15 @@ class MatchStatScraper(object):
     @retry(urllib2.URLError, tries=4, delay=3, backoff=2)
     def get_page(self, link):
 
-        data = urllib2.urlopen(link, timeout=10)
+        # EVIL workaround to fix error
+        # see
+        # http://stackoverflow.com/questions/19268548/python-
+        # ignore-certicate-validation-urllib2
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+
+        data = urllib2.urlopen(link, timeout=10, context=ctx)
         return data
 
     def get_stats(self, match_data, winner_name, loser_name):
