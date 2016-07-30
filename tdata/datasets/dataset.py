@@ -1,8 +1,7 @@
-import datetime
 import pandas as pd
 
 from abc import abstractmethod
-from datetime import timedelta, date, datetime
+from datetime import timedelta, date
 from tdata.datasets.match import CompletedMatch
 from tdata.datasets.parsed_string_score import ParsedStringScore, \
     BadFormattingException
@@ -20,6 +19,7 @@ class Dataset(object):
     def __init__(self):
 
         self.tour_averages = dict()
+        self.tournament_averages = dict()
 
     def reduce_to_subset(self, df, min_date=None, max_date=None, surface=None,
                          before_round=None):
@@ -44,14 +44,12 @@ class Dataset(object):
             else:
 
                 # Add matches before current round
+                df = df[:max_date]
 
-                previous_date = df[:(max_date - timedelta(days=1))]
-                same_date = df[max_date:max_date]
-
-                earlier_round = same_date[same_date['round_number'] <
-                                          before_round]
-
-                df = pd.concat([previous_date, earlier_round], axis=0)
+                # Remove matches before
+                df = df[
+                    (df.index < pd.Timestamp(max_date)) |
+                    (df['round_number'] < before_round)]
 
         if len(df.shape) == 1:
 
@@ -137,6 +135,11 @@ class Dataset(object):
             in the tournament given in the date range given.
         """
 
+        key = (tournament_name, min_date, max_date)
+
+        if key in self.tournament_averages:
+            return self.tournament_averages[key]
+
         full_df = self.get_stats_df()
         tournament_df = full_df.set_index('tournament_name')
         relevant_matches = tournament_df.loc[tournament_name]
@@ -154,15 +157,20 @@ class Dataset(object):
         averages = (relevant_matches['winner_serve_points_won_pct'] +
                     relevant_matches['loser_serve_points_won_pct']) / 2
 
+        self.tournament_averages[key] = averages.mean()
+
         return averages.mean()
 
     def turn_into_matches(self, df):
 
         """Converts the DataFrame given into a list of CompletedMatches."""
 
+        # Turn df into records:
+        records = df.to_dict('records')
+
         matches = list()
 
-        for _, row in df.iterrows():
+        for row in records:
 
             stats = self.calculate_stats(
                 row['winner'], row['loser'], row)
@@ -182,7 +190,7 @@ class Dataset(object):
             else:
                 cur_surface = row['surface']
 
-            if 'odds_winner' in row.index:
+            if 'odds_winner' in row:
                 odds = {row['winner']: row['winner_odds'],
                         row['loser']: row['loser_odds']}
             else:

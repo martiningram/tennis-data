@@ -175,9 +175,6 @@ class MatchStatDataset(Dataset):
 
     def calculate_stats(self, winner, loser, row):
 
-        # Drop the nans:
-        to_use = row.dropna()
-
         winners, ues, odds = None, None, None
 
         stats = dict()
@@ -191,12 +188,14 @@ class MatchStatDataset(Dataset):
 
             serve_won_pct = row['{}_serve_points_won_pct'.format(role)]
 
-            if 'winners' in to_use.index:
+            if ('{}_winners'.format(role) in row and
+                    not np.isnan(row['{}_winners'.format(role)])):
 
                 winners = row['{}_winners'.format(role)]
-                ues = row['{}_ues'.format(role)]
+                ues = row['{}_unforced_errors'.format(role)]
 
-            if 'odds' in to_use.index:
+            if ('{}_odds'.format(role) in row and
+                    not np.isnan(row['{}_odds'.format(role)])):
 
                 odds = row['{}_odds'.format(role)]
 
