@@ -498,7 +498,7 @@ if __name__ == '__main__':
 
     scraper = MatchStatScraper()
 
-    scraper.update(t_type='atp')
+    scraper.update(t_type='wta')
 
     exit()
 
