@@ -95,7 +95,7 @@ class Dataset(object):
 
         by_players = self.get_player_df()
 
-        all_matches = dict()
+        all_matches = list()
 
         for level in ['winner', 'loser']:
 
@@ -111,11 +111,11 @@ class Dataset(object):
                 cur_matches, min_date=min_date, max_date=max_date,
                 before_round=before_round, surface=surface)
 
-            all_matches[level] = self.turn_into_matches(subset)
+            all_matches.append(self.turn_into_matches(subset))
 
         # This will not return in order, but return all winning, then all
         # losing matches. Is it an issue? Check.
-        return chain(all_matches['winner'], all_matches['loser'])
+        return chain(*all_matches)
 
     def get_tournament_serve_average(self, tournament_name, min_date=None,
                                      max_date=None):
