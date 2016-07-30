@@ -6,6 +6,7 @@ import glob
 import urllib2
 import logging
 import pandas as pd
+from pathlib import Path
 
 from datetime import date
 from bs4 import BeautifulSoup
@@ -30,7 +31,11 @@ class MatchStatScraper(object):
 
     def __init__(self):
 
-        self.cache_path = 'data/cache/'
+        # Find the correct directory:
+        exec_dir = Path(__file__).parents[2]
+
+        self.cache_path = str(exec_dir) + '/data/cache/'
+        self.data_path = str(exec_dir) + '/data/year_csvs/'
 
         self.tournament_surfaces = dict()
 
@@ -389,6 +394,9 @@ class MatchStatScraper(object):
 
         cache_dir = os.path.join(self.cache_path, t_type)
 
+        if not os.path.isdir(cache_dir):
+            os.makedirs(cache_dir)
+
         data = self.get_tournament_links(year, t_type=t_type)
 
         # Only keep times before now
@@ -461,7 +469,7 @@ class MatchStatScraper(object):
     def update(self, t_type='atp'):
 
         # Find most recent year csv
-        csvs = glob.glob('data/year_csvs/*{}.csv'.format(t_type))
+        csvs = glob.glob('{}/*{}.csv'.format(self.data_path, t_type))
 
         # Extract the years
         filenames = [os.path.split(x)[1] for x in csvs]
@@ -481,8 +489,9 @@ class MatchStatScraper(object):
         for year in range(most_recent, cur_year + 1):
 
             all_data = self.scrape_all(year, t_type)
-            all_data.to_csv('data/year_csvs/{}_{}.csv'.format(year, t_type),
-                            encoding='utf-8')
+            all_data.to_csv(
+                '{}/{}_{}.csv'.format(self.data_path, year, t_type),
+                encoding='utf-8')
 
 
 if __name__ == '__main__':

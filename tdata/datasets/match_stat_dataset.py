@@ -1,3 +1,4 @@
+import os
 import glob
 import numpy as np
 import pandas as pd
@@ -9,7 +10,8 @@ from tdata.datasets.match_stats import MatchStats
 
 class MatchStatDataset(Dataset):
 
-    def __init__(self, t_type='atp', stat_matches_only=True):
+    def __init__(self, t_type='atp', stat_matches_only=True,
+                 min_year=None):
 
         super(MatchStatDataset, self).__init__()
 
@@ -20,6 +22,12 @@ class MatchStatDataset(Dataset):
         # Get all csv filenames:
         all_csvs = glob.glob(
             '{}/data/year_csvs/*{}*.csv'.format(exec_dir, t_type))
+
+        if min_year is not None:
+
+            all_csvs = [x for x in all_csvs if
+                        int(os.path.split(x)[1][:4]) >= min_year
+                        for x in all_csvs]
 
         all_read = [pd.read_csv(x, index_col=0) for x in all_csvs]
         concatenated = pd.concat(all_read, ignore_index=True)

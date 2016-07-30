@@ -1,5 +1,6 @@
 import pandas as pd
 
+from itertools import chain
 from abc import abstractmethod
 from datetime import timedelta, date
 from tdata.datasets.match import CompletedMatch
