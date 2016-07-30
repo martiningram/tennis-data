@@ -95,7 +95,7 @@ class Dataset(object):
 
         by_players = self.get_player_df()
 
-        all_matches = list()
+        all_matches = dict()
 
         for level in ['winner', 'loser']:
 
@@ -111,9 +111,11 @@ class Dataset(object):
                 cur_matches, min_date=min_date, max_date=max_date,
                 before_round=before_round, surface=surface)
 
-            all_matches.extend(self.turn_into_matches(subset))
+            all_matches[level] = self.turn_into_matches(subset)
 
-        return sorted(all_matches, key=lambda x: x.date)
+        # This will not return in order, but return all winning, then all
+        # losing matches. Is it an issue? Check.
+        return itertools.chain(all_matches['winner'], all_matches['loser'])
 
     def get_tournament_serve_average(self, tournament_name, min_date=None,
                                      max_date=None):
@@ -203,9 +205,7 @@ class Dataset(object):
                 tournament_name=row['tournament_name'], surface=cur_surface,
                 tournament_round=row['round_number'], odds=odds, score=score)
 
-            matches.append(match)
-
-        return matches
+            yield match
 
     def get_matches_between(self, min_date=None, max_date=None, surface=None):
         """Fetches matches in the dataset, optionally filtered by date and
