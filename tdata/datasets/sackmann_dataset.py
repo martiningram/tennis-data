@@ -1,4 +1,5 @@
 import glob
+import numpy as np
 import pandas as pd
 
 from pathlib import Path
@@ -140,9 +141,6 @@ class SackmannDataset(Dataset):
 
     def calculate_stats(self, winner, loser, row):
 
-        # Drop the nans:
-        to_use = row.dropna()
-
         winners, ues, odds = None, None, None
 
         stats = dict()
@@ -156,12 +154,14 @@ class SackmannDataset(Dataset):
             serve_won_pct = (first_serve_pct * first_won_pct +
                              (1 - first_serve_pct) * second_won_pct)
 
-            if 'winners' in to_use.index:
+            if ('{}_winners'.format(role) in row and
+                    not np.isnan(row['{}_winners'.format(role)])):
 
                 winners = row['{}_winners'.format(role)]
                 ues = row['{}_ues'.format(role)]
 
-            if 'odds' in to_use.index:
+            if ('{}_odds'.format(role) in row and
+                    not np.isnan(row['{}_odds'.format(role)])):
 
                 odds = row['{}_odds'.format(role)]
 
