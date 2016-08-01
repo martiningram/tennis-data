@@ -22,6 +22,13 @@ class Dataset(object):
         self.tour_averages = dict()
         self.tournament_averages = dict()
 
+        # Also add a lookup of tournament start dates:
+        df = self.get_stats_df()
+        df['year'] = df['start_date'].dt.year
+        df = df.set_index(['tournament_name', 'year', 'start_date'])
+        unique = set(df.index.values)
+        self.start_dates = {x[0]: x[2] for x in unique}
+
     def reduce_to_subset(self, df, min_date=None, max_date=None, surface=None,
                          before_round=None):
 
@@ -117,6 +124,22 @@ class Dataset(object):
         # losing matches. Is it an issue? Check.
         return chain(*all_matches)
 
+    def get_player_matches_before_event(self, player_name, min_date=None,
+                                        before_tournament=None,
+                                        before_round=None):
+        # TODO: test this.
+
+        max_date = None
+
+        if before_tournament is not None:
+
+            max_date = self.start_dates[before_tournament]
+
+        return self.get_player_matches(player_name, min_date=min_date,
+                                       max_date=max_date,
+                                       before_round=before_round)
+
+
     def get_tournament_serve_average(self, tournament_name, min_date=None,
                                      max_date=None):
         """Returns the average probability of winning a point on serve for
@@ -170,6 +193,8 @@ class Dataset(object):
 
         # Turn df into records:
         records = df.to_dict('records')
+
+        matches = list()
 
         for row in records:
 

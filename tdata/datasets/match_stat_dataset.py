@@ -13,8 +13,6 @@ class MatchStatDataset(Dataset):
     def __init__(self, t_type='atp', stat_matches_only=True,
                  min_year=None):
 
-        super(MatchStatDataset, self).__init__()
-
         # Import all data:
         # Find the correct directory:
         exec_dir = Path(__file__).parents[2]
@@ -78,6 +76,8 @@ class MatchStatDataset(Dataset):
                                                  drop=False)
 
         self.full_df = concatenated
+
+        super(MatchStatDataset, self).__init__()
 
     def make_round_number(self, df):
 
@@ -221,9 +221,11 @@ if __name__ == '__main__':
 
     from datetime import date
 
-    dataset = MatchStatDataset()
+    dataset = MatchStatDataset(t_type='wta', min_year=2014)
 
-    test = dataset.get_player_matches('Roger Federer', date(2015, 1, 1),
-                                      date(2015, 12, 1))
+    test = dataset.get_player_matches('Madison Keys', date(2016, 7, 1),
+                                      date(2016, 7, 31), before_round=2)
 
-    print(len(test))
+    for match in test:
+
+        print(match)
