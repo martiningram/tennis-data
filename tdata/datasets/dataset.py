@@ -200,7 +200,7 @@ class Dataset(object):
         """Converts the DataFrame given into a list of CompletedMatches."""
 
         # Find records from index:
-        records = [self.dict_version[x] for x in df.index]
+        records = (self.dict_version[x] for x in df.index)
 
         matches = list()
 
