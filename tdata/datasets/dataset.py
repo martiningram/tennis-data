@@ -29,6 +29,12 @@ class Dataset(object):
         unique = set(df.index.values)
         self.start_dates = {x[0]: x[2] for x in unique}
 
+        self.df_index = ['winner', 'loser', 'round', 'tournament_name', 'year']
+
+        # Add an indexed dict version:
+        self.dict_version = self.get_stats_df().to_dict('index')
+
+
     def reduce_to_subset(self, df, min_date=None, max_date=None, surface=None,
                          before_round=None):
 
@@ -78,7 +84,7 @@ class Dataset(object):
 
                 return pd.DataFrame()
 
-        return df
+        return df.set_index(self.df_index, drop=False)
 
     def get_player_matches(self, player_name, min_date=None, max_date=None,
                            surface=None, before_round=None):
@@ -100,7 +106,7 @@ class Dataset(object):
             in the given period on a given surface.
         """
 
-        by_players = self.get_player_df()
+        by_players = self.get_stats_df()
 
         all_matches = list()
 
@@ -118,11 +124,14 @@ class Dataset(object):
                 cur_matches, min_date=min_date, max_date=max_date,
                 before_round=before_round, surface=surface)
 
-            all_matches.append(self.turn_into_matches(subset))
+            all_matches.append(subset)
 
-        # This will not return in order, but return all winning, then all
-        # losing matches. Is it an issue? Check.
-        return chain(*all_matches)
+        # TODO: Not a fan of the pd.concat here. Maybe there is a faster way?
+        all_matches = pd.concat(all_matches)
+        all_matches = all_matches.sort_values('start_date')
+        all_matches = all_matches.set_index(self.df_index, drop=False)
+
+        return self.turn_into_matches(all_matches)
 
     def get_player_matches_before_event(self, player_name, min_date=None,
                                         before_tournament=None,
@@ -138,7 +147,6 @@ class Dataset(object):
         return self.get_player_matches(player_name, min_date=min_date,
                                        max_date=max_date,
                                        before_round=before_round)
-
 
     def get_tournament_serve_average(self, tournament_name, min_date=None,
                                      max_date=None):
@@ -191,8 +199,8 @@ class Dataset(object):
 
         """Converts the DataFrame given into a list of CompletedMatches."""
 
-        # Turn df into records:
-        records = df.to_dict('records')
+        # Find records from index:
+        records = [self.dict_version[x] for x in df.index]
 
         matches = list()
 

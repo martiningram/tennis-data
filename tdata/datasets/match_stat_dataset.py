@@ -29,6 +29,7 @@ class MatchStatDataset(Dataset):
         all_read = [pd.read_csv(x, index_col=0) for x in all_csvs]
         concatenated = pd.concat(all_read, ignore_index=True)
         concatenated['start_date'] = pd.to_datetime(concatenated['start_date'])
+        concatenated['year'] = concatenated['start_date'].dt.year
 
         # Drop matches without round (Davis Cup)
         concatenated = concatenated.dropna(subset=['round'])
@@ -72,10 +73,9 @@ class MatchStatDataset(Dataset):
 
         concatenated = concatenated.sort_values(['start_date', 'round_number'])
 
-        self.by_players = concatenated.set_index(['winner', 'loser'],
-                                                 drop=False)
-
-        self.full_df = concatenated
+        self.full_df = concatenated.set_index(
+            ['winner', 'loser', 'round', 'tournament_name', 'year'],
+            drop=False)
 
         super(MatchStatDataset, self).__init__()
 
