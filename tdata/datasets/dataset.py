@@ -34,7 +34,6 @@ class Dataset(object):
         # Add an indexed dict version:
         self.dict_version = self.get_stats_df().to_dict('index')
 
-
     def reduce_to_subset(self, df, min_date=None, max_date=None, surface=None,
                          before_round=None):
 
@@ -128,7 +127,7 @@ class Dataset(object):
 
         # TODO: Not a fan of the pd.concat here. Maybe there is a faster way?
         all_matches = pd.concat(all_matches)
-        all_matches = all_matches.sort_values('start_date')
+        all_matches = all_matches.sort_values(['start_date', 'round_number'])
         all_matches = all_matches.set_index(self.df_index, drop=False)
 
         return self.turn_into_matches(all_matches)

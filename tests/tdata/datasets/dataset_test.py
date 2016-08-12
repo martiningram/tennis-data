@@ -10,34 +10,15 @@ class TestSackmannDataset(object):
         for dataset in [SackmannDataset(), MatchStatDataset()]:
 
             # Check the Australian Open
-            # Federer left in R32, which is round number 2. He played R128, R64
-            # and R32.
-            # Hence this should give 3 matches.
-            matches = dataset.get_player_matches(
-                'Roger Federer', min_date=date(2015, 1, 19),
-                max_date=date(2015, 1, 19), before_round=3)
+            for round_number in range(0, 3):
 
-            assert(len(matches) == 3)
+                matches = dataset.get_player_matches(
+                    'Roger Federer', min_date=date(2015, 1, 19),
+                    max_date=date(2015, 1, 19), before_round=round_number)
 
-            # This should give two:
-            matches = dataset.get_player_matches(
-                'Roger Federer', min_date=date(2015, 1, 19),
-                max_date=date(2015, 1, 19), before_round=2)
+                matches = list(matches)
 
-            assert(len(matches) == 2)
-
-            # Check 1 and 0 too:
-            matches = dataset.get_player_matches(
-                'Roger Federer', min_date=date(2015, 1, 19),
-                max_date=date(2015, 1, 19), before_round=1)
-
-            assert(len(matches) == 1)
-
-            matches = dataset.get_player_matches(
-                'Roger Federer', min_date=date(2015, 1, 19),
-                max_date=date(2015, 1, 19), before_round=0)
-
-            assert(len(matches) == 0)
+                assert(len(matches) == round_number)
 
     def test_round_preao(self):
 
@@ -51,6 +32,8 @@ class TestSackmannDataset(object):
             matches = dataset.get_player_matches(
                 'Roger Federer', min_date=date(2015, 1, 1),
                 max_date=date(2015, 1, 19), before_round=2)
+
+            matches = list(matches)
 
             for match in matches:
 

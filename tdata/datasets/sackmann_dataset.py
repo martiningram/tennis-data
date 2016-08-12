@@ -11,8 +11,6 @@ class SackmannDataset(Dataset):
 
     def __init__(self, stat_matches_only=True):
 
-        super(SackmannDataset, self).__init__()
-
         # Find the correct directory:
         exec_dir = Path(__file__).parents[2]
 
@@ -55,8 +53,13 @@ class SackmannDataset(Dataset):
         # Sort by date
         big_df = big_df.sort_values(['start_date', 'round_number'])
 
-        self.full_df = big_df
-        self.by_players = big_df.set_index(['winner', 'loser'], drop=False)
+        big_df['year'] = big_df['start_date'].dt.year
+
+        self.full_df = big_df.set_index(
+            ['winner', 'loser', 'round', 'tournament_name', 'year'],
+            drop=False)
+
+        super(SackmannDataset, self).__init__()
 
     def make_round_number(self, df):
 
