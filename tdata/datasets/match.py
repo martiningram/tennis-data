@@ -90,7 +90,7 @@ class CompletedMatch(Match):
 
     def __init__(self, p1, p2, date, winner, score, surface=None, stats=None,
                  points=None, tournament_name=None, tournament_round=None,
-                 odds=None):
+                 odds=None, final_point_level_info=None):
 
         super(CompletedMatch, self).__init__(
             p1=p1, p2=p2, best_of_five=score.bo5, date=date, surface=surface,
@@ -108,6 +108,7 @@ class CompletedMatch(Match):
         self.loser = self.p2 if self.winner == self.p1 else self.p1
         self.odds = odds
         self.score = score
+        self.final_point_level_info = final_point_level_info
 
     def to_dict(self):
         """Converts the CompletedMatch object to a dictionary representation.

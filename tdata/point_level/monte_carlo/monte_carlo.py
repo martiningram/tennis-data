@@ -31,6 +31,11 @@ class Score:
             self.serve_stats[x]["out_of"] = 0
             self.serve_stats[x]["won"] = 0
 
+        self.service_game_stats = defaultdict(dict)
+        for x in [self.p1, self.p2]:
+            self.service_game_stats[x]['out_of'] = 0
+            self.service_game_stats[x]['won'] = 0
+
         self.cur_server = p1
         self.match_over = False
         self.last_point_winner = "Nobody"
@@ -302,6 +307,11 @@ def play_service_game(score, server, receiver, prob_fun_server):
 
     if loser == server:
         score.bp_won[winner] += 1
+
+    if winner == server:
+        score.service_game_stats[server]['won'] += 1
+
+    score.service_game_stats[server]['out_of'] += 1
 
     # For the predictors:
     score.missed_bp_last_returning[receiver] = \

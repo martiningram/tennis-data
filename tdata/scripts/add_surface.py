@@ -1,8 +1,12 @@
 """This script should only have to be run once: it adds surface information
 to the MatchStat csvs."""
 
+import os
 import glob
+import numpy as np
 import pandas as pd
+import cPickle as pkl
+from tqdm import tqdm
 from tdata.matchstat.scrape_matchstat import MatchStatScraper
 
 
@@ -12,13 +16,24 @@ scraper = MatchStatScraper()
 
 # Find year csvs:
 
-csvs = glob.glob('data/year_csvs/*.csv')
+# Only run recent years -- change if required
+csvs = glob.glob('data/year_csvs/2016*.csv')
 
-for csv in csvs:
+save_name = 'data/cache/surfaces.pkl'
+
+if os.path.isfile(save_name):
+
+    surface_series = pkl.load(open(save_name, 'rb'))
+
+else:
+
+    surface_series = dict()
+
+for csv in tqdm(csvs):
 
     cur_df = pd.read_csv(csv, index_col=0)
 
-    if 'surface' in cur_df.columns:
+    if 'surface' in cur_df.columns and np.sum(cur_df['surface'].isnull()) == 0:
         print('Skipping {}'.format(csv))
         continue
 
@@ -27,22 +42,34 @@ for csv in csvs:
 
     unique_tourneys = by_tourney.index.unique()
 
+    cur_year = pd.to_datetime(cur_df['start_date']).dt.year.iloc[0]
+
     for t in unique_tourneys:
 
-        print('Processing {}'.format(t))
+        if t in surface_series:
 
-        cur_matches = by_tourney.loc[t]
+            surface = surface_series[t]
 
-        if len(cur_matches.shape) < 2:
-            continue
+        else:
 
-        sample_match = cur_matches.iloc[0]
+            print('Processing {}'.format(t))
 
-        if 'winner' not in sample_match:
-            continue
+            cur_matches = by_tourney.loc[t]
 
-        surface = scraper.find_surface(
-            sample_match.winner, sample_match.loser, t)
+            if len(cur_matches.shape) < 2:
+                continue
+
+            sample_match = cur_matches.iloc[0]
+
+            if 'winner' not in sample_match:
+                continue
+
+            surface = scraper.find_surface(
+                sample_match.winner, sample_match.loser, t)
+
+            surface_series[t] = surface
+
+            pkl.dump(surface_series, open(save_name, 'wb'))
 
         by_tourney.loc[t, 'surface'] = surface
 

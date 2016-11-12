@@ -207,7 +207,7 @@ class MatchStatScraper(object):
 
         return cur_results
 
-    @retry(urllib2.URLError, tries=4, delay=3, backoff=2)
+    @retry(urllib2.URLError, tries=10, delay=3, backoff=2)
     def get_page(self, link):
 
         # EVIL workaround to fix error
