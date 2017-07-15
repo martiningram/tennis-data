@@ -132,9 +132,9 @@ class MatchChartingParser(object):
                              best_of_five):
 
         initial_score = Score(first_server, first_receiver, best_of_five)
-        sequence = generate_points(initial_score, win_sequence)
+        sequence, final_score = generate_points(initial_score, win_sequence)
 
-        return sequence
+        return sequence, final_score
 
     def parse_match(self, match_id, t_type='atp'):
 
@@ -158,12 +158,12 @@ class MatchChartingParser(object):
 
         sequence = self.turn_into_boolean_sequence(match_df)
 
-        points = self.points_from_sequence(first_server, first_receiver,
-                                           sequence, is_bo5)
+        points, final_score = self.points_from_sequence(
+            first_server, first_receiver, sequence, is_bo5)
 
         points = self.add_shot_sequence(points, first_codes, second_codes)
 
-        return points
+        return points, final_score
 
     def add_shot_sequence(self, points, first_codes, second_codes):
 

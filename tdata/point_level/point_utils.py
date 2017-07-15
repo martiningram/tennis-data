@@ -20,4 +20,4 @@ def generate_points(start_score, win_sequence):
         advanced_score = monte_carlo.advance_score(
             start_score_copy, point_sequence)
 
-    return point_sequence
+    return point_sequence, advanced_score

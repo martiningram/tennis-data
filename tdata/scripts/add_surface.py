@@ -67,9 +67,12 @@ for csv in tqdm(csvs):
             surface = scraper.find_surface(
                 sample_match.winner, sample_match.loser, t)
 
-            surface_series[t] = surface
+            surface_series[t] = str(surface)
 
-            pkl.dump(surface_series, open(save_name, 'wb'))
+            print(t, surface_series[t])
+
+            with open(save_name, 'wb') as f:
+                pkl.dump(surface_series, f)
 
         by_tourney.loc[t, 'surface'] = surface
 

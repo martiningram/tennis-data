@@ -11,7 +11,7 @@ from tdata.datasets.match_stats import MatchStats
 class MatchStatDataset(Dataset):
 
     def __init__(self, t_type='atp', stat_matches_only=True,
-                 min_year=None):
+                 min_year=None, drop_qual=True):
 
         # Import all data:
         # Find the correct directory:
@@ -52,15 +52,24 @@ class MatchStatDataset(Dataset):
             ~concatenated['score'].str.contains('WO|,|Default')]
 
         # Drop qualifying (for now)
-        concatenated = concatenated[
-            ~(concatenated['round'].str.contains('FQ'))]
+        if drop_qual:
+            concatenated = concatenated[
+                ~(concatenated['round'].str.contains('FQ'))]
 
         # Drop doubles
         concatenated = concatenated[
-            ~(concatenated['winner'].str.contains('/'))]
+            (~(concatenated['winner'].str.contains('/'))) &
+            (~(concatenated['loser'].str.contains('/')))]
 
         # Add round number
         concatenated['round_number'] = self.make_round_number(concatenated)
+
+        # Clean up surface
+        concatenated['surface'] = concatenated['surface'].str.lower()
+
+        # Group indoor clay as clay
+        concatenated['surface'] = concatenated['surface'].str.replace(
+            'i clay', 'clay')
 
         stats = self.calculate_stats_df(concatenated)
 
@@ -72,6 +81,8 @@ class MatchStatDataset(Dataset):
                 subset=['winner_serve_points_won_pct'])
 
         concatenated = concatenated.sort_values(['start_date', 'round_number'])
+
+        concatenated['start_date'] = pd.to_datetime(concatenated['start_date'])
 
         self.full_df = concatenated.set_index(
             ['winner', 'loser', 'round', 'tournament_name', 'year'],

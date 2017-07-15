@@ -10,7 +10,7 @@ from pathlib import Path
 
 from datetime import date
 from bs4 import BeautifulSoup
-from tdata.utils import retry
+from tdata.utils.utils import retry
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
