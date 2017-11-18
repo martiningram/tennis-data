@@ -142,8 +142,6 @@ class Score:
 
     def total_games(self):
 
-        assert(self.match_over)
-
         total_games = 0
 
         for i in range(self.set_num + 1):
