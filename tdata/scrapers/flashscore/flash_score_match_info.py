@@ -1,5 +1,5 @@
-from bs4 import BeautifulSoup
-from tdata.flashscore.utils import wait_for_element_and_parse
+from selenium.webdriver.common.by import By
+from tdata.scrapers.flashscore.utils import wait_for_element_and_parse
 
 
 class FlashScoreMatchInfo(object):
@@ -8,8 +8,8 @@ class FlashScoreMatchInfo(object):
 
         driver.get(match_website)
 
-        cur_source = wait_for_element_and_parse(driver, 'Point by Point',
-                                                max_delay)
+        cur_source = wait_for_element_and_parse(
+            driver, 'odd', max_delay, by=By.CLASS_NAME)
 
         # Find out whether it has finished
         self.is_over = self.has_finished(cur_source)
@@ -21,10 +21,15 @@ class FlashScoreMatchInfo(object):
         self.match_date = event_name_date['match_date']
         self.player_scores = self.extract_player_scores(cur_source)
 
+        # Make sure next link is available
+        wait_for_element_and_parse(
+            driver, 'Point by Point', max_delay)
+
         # Navigate to point by point
         driver.find_element_by_partial_link_text('Point by Point').click()
 
-        cur_source = wait_for_element_and_parse(driver, 'Set 1', max_delay)
+        cur_source = wait_for_element_and_parse(
+            driver, 'tab-mhistory-1-history', max_delay, by=By.ID)
 
         # Get point sequence
         self.point_sequence = self.get_point_sequence(cur_source)
@@ -131,6 +136,11 @@ class FlashScoreMatchInfo(object):
         even_player_name = even_player.find('a').text
         odd_player_name = odd_player.find('a').text
 
+        full_names_from_title = [x.strip() for x in summary_page.find(
+            'title').text.split('|')[1].split(' - ')]
+
+        odd_player_name_full, even_player_name_full = full_names_from_title
+
         scores_even = FlashScoreMatchInfo.scores_from_player_page(even_player)
         scores_odd = FlashScoreMatchInfo.scores_from_player_page(odd_player)
 
@@ -142,6 +152,8 @@ class FlashScoreMatchInfo(object):
 
         return {'odd_server': odd_player_name,
                 'even_server': even_player_name,
+                'full_name_odd_server': odd_player_name_full,
+                'full_name_even_server': even_player_name_full,
                 'even_sets_won': scores_even['sets_won'],
                 'odd_sets_won': scores_odd['sets_won'],
                 'final_score': final_score}

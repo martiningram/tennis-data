@@ -4,7 +4,7 @@ import tdata.point_level.monte_carlo.monte_carlo as mc
 from copy import deepcopy
 from tdata.datasets.match import CompletedMatch
 from tdata.point_level.point import Point
-from tdata.datasets.parsed_string_score import ParsedStringScore, \
+from tdata.datasets.score import Score, \
     BadFormattingException
 
 
@@ -84,7 +84,7 @@ class SackmannImporter(object):
 
             # Skip if it's a long non-tb final set:
             try:
-                sack_score = ParsedStringScore(row['score'], winner, loser)
+                sack_score = Score(row['score'], winner, loser)
                 if sack_score.was_long_final_set():
                     print("Skipping:")
                     print(row)

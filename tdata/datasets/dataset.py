@@ -4,8 +4,7 @@ from itertools import chain
 from abc import abstractmethod
 from datetime import timedelta, date
 from tdata.datasets.match import CompletedMatch
-from tdata.datasets.parsed_string_score import ParsedStringScore, \
-    BadFormattingException
+from tdata.datasets.score import Score, BadFormattingException
 
 
 class Dataset(object):
@@ -209,8 +208,7 @@ class Dataset(object):
                 row['winner'], row['loser'], row)
 
             try:
-                score = ParsedStringScore(
-                    row['score'], row['winner'], row['loser'])
+                score = Score(row['score'], row['winner'], row['loser'])
             except BadFormattingException:
                 continue
 

@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import cPickle as pkl
 from tqdm import tqdm
-from tdata.matchstat.scrape_matchstat import MatchStatScraper
+from tdata.scrapers.matchstat.scrape_matchstat import MatchStatScraper
 
 
 # Get scraper

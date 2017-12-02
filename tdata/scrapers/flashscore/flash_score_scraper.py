@@ -1,9 +1,11 @@
 import os
 import json
+
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
-from tdata.flashscore.utils import wait_for_element_and_parse
-from tdata.flashscore.flash_score_match_info import FlashScoreMatchInfo
+from tdata.scrapers.flashscore.utils import wait_for_element_and_parse
+from tdata.scrapers.flashscore.flash_score_match_info import (
+    FlashScoreMatchInfo)
 
 
 class FlashScoreScraper(object):
@@ -13,6 +15,7 @@ class FlashScoreScraper(object):
         self.flash_score_site = 'https://www.flashscore.com.au'
         self.driver = driver
         self.max_delay = max_delay
+        self.driver.set_page_load_timeout(self.max_delay)
 
     @staticmethod
     def add_tournament_year(link, year):
@@ -111,12 +114,20 @@ class FlashScoreScraper(object):
         if not os.path.isdir(output_dir):
             os.makedirs(output_dir)
 
+        failed_match_file = open(
+            os.path.join(output_dir, 'failed_{}.txt'.format(year)), 'w')
+
         print('Fetching tournament links...')
         tournament_links = self.get_tournament_links(t_type, year)
         print('Fetched tournament links.')
 
         for cur_tournament_name, cur_tournament_link in (
                 tournament_links.items()):
+
+            if "Davis Cup" in cur_tournament_name:
+                print('Skipping {} as not interesting.'.format(
+                    cur_tournament_name))
+                continue
 
             print('Scraping {} in {}...'.format(cur_tournament_name, year))
 
@@ -145,9 +156,25 @@ class FlashScoreScraper(object):
                 except TimeoutException:
                     print('Failed to scrape match with ID {}.'
                           ' Skipping.'.format(cur_match_id))
+                    failed_match_file.write(cur_match_id + '\n')
+                    failed_match_file.flush()
+                    continue
+                except AttributeError:
+                    print('Something went wrong when parsing match'
+                          ' with ID {}. Skipping.'.format(cur_match_id))
+                    failed_match_file.write(cur_match_id + '\n')
+                    failed_match_file.flush()
+                    continue
+                except Exception:
+                    print('Unforeseen exception caught in match'
+                          ' with ID {}. Skipping.'.format(cur_match_id))
+                    failed_match_file.write(cur_match_id + '\n')
+                    failed_match_file.flush()
                     continue
 
                 as_dict = scraped.to_dict()
 
                 # Write to disk
                 json.dump(as_dict, open(target_file, 'w'))
+
+        failed_match_file.close()

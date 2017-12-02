@@ -1,6 +1,6 @@
 import argparse
 from selenium import webdriver
-from tdata.flashscore.flash_score_scraper import FlashScoreScraper
+from tdata.scrapers.flashscore.flash_score_scraper import FlashScoreScraper
 
 
 parser = argparse.ArgumentParser()
