@@ -1,7 +1,7 @@
 import numpy as np
 from copy import deepcopy
 from collections import defaultdict
-from importance import ImportanceCalculator
+#from importance import ImportanceCalculator
 
 
 class Score:
@@ -51,7 +51,7 @@ class Score:
         self.bps_total[p1] = 0
         self.bps_total[p2] = 0
 
-        self.importance_calculator = ImportanceCalculator()
+        # self.importance_calculator = ImportanceCalculator()
 
     def reset_points(self):
 
@@ -102,6 +102,9 @@ class Score:
             return False
 
     def calculate_importance(self, verbose=False):
+
+        print('Currently unsupported. Exiting.')
+        exit(1)
 
         if self.is_tiebreak():
             deuce = 6

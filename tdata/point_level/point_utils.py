@@ -1,7 +1,6 @@
 import tdata.point_level.monte_carlo.monte_carlo as monte_carlo
 
 from copy import deepcopy
-
 from tdata.point_level.point import Point
 
 
