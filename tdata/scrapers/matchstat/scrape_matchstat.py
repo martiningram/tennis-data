@@ -32,7 +32,7 @@ class MatchStatScraper(object):
     def __init__(self):
 
         # Find the correct directory:
-        exec_dir = Path(__file__).parents[2]
+        exec_dir = Path(__file__).parents[3]
 
         self.cache_path = str(exec_dir) + '/data/cache/'
         self.data_path = str(exec_dir) + '/data/year_csvs/'
@@ -123,13 +123,20 @@ class MatchStatScraper(object):
 
         for tr in trs:
 
-            # Note: looking for just br like this could be prone to breaking.
-            start_date = tr.find('br')
+            start_date = tr.find('td')
 
             if start_date is None:
                 continue
 
-            start_date = start_date.string.strip()
+            # Extract the start date from this
+            start_date = str(start_date)
+
+            # Split on <br/>
+            start_date = start_date.split('<br/>')[1]
+
+            # Keep only the date characters
+            start_date = ''.join([x for x in start_date if x.isdigit() or x ==
+                                  '-'])
 
             cur_tournaments = tr.find_all('span', class_=t_type)
 

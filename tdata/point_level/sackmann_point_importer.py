@@ -130,7 +130,7 @@ class SackmannImporter(object):
                            (row['server2'], row['server1']))
 
         # Find additional parameters for simulation
-        sack_score = ParsedStringScore(row['score'], winner, loser)
+        sack_score = Score(row['score'], winner, loser)
         server = row['server1']
         returner = row['server2']
         bo5 = sack_score.bo5

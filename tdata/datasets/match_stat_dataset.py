@@ -93,7 +93,7 @@ class MatchStatDataset(Dataset):
     def make_round_number(self, df):
 
         substitutions = {'R128': 0, 'R64': 1, 'R32': 2, 'R16': 3, 'QF': 4,
-                         'SF': 5, 'F': 6}
+                         'SF': 5, 'F': 6, 'RR A': 0, 'RR B': 0}
 
         round_numbers = df['round'].replace(substitutions)
 

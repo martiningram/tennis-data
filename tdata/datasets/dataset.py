@@ -33,6 +33,37 @@ class Dataset(object):
         # Add an indexed dict version:
         self.dict_version = self.get_stats_df().to_dict('index')
 
+    def find_surface(self, tournament_name):
+
+        df = self.get_stats_df()
+        relevant_entries = df[df['tournament_name'] == tournament_name]
+        unique_surfaces = relevant_entries['surface'].unique()
+        assert(len(unique_surfaces) == 1)
+        return unique_surfaces[0]
+
+    def estimate_date_using_round(self, df):
+
+        adjusted_dates = df['start_date'].copy()
+
+        # Find all tournament & year combinations and convert
+        tournament_years = df[['tournament_name', 'year']].values.tolist()
+        tournament_years = set([tuple(x) for x in tournament_years])
+
+        for cur_tournament, cur_year in tournament_years:
+
+            relevant = (df['tournament_name'] == cur_tournament) & (
+                df['year'] == cur_year)
+
+            min_round = df[relevant]['round_number'].min()
+
+            adjusted_rounds = df[relevant]['round_number'] - min_round
+
+            adjusted_dates[relevant] += pd.to_timedelta(adjusted_rounds,
+                                                        unit='D')
+
+        return adjusted_dates
+
+
     def reduce_to_subset(self, df, min_date=None, max_date=None, surface=None,
                          before_round=None):
 

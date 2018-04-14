@@ -1,3 +1,4 @@
+import csv
 import logging
 import numpy as np
 import pandas as pd
@@ -33,12 +34,14 @@ class MatchChartingParser(object):
         if t_type == 'atp':
 
             df = pd.read_csv(
-                'data/tennis_MatchChartingProject/charting-m-matches.csv')
+                'data/tennis_MatchChartingProject/charting-m-matches.csv',
+                quoting=csv.QUOTE_NONE)
 
         else:
 
             df = pd.read_csv(
-                'data/tennis_MatchChartingProject/charting-w-matches.csv')
+                'data/tennis_MatchChartingProject/charting-w-matches.csv',
+                quoting=csv.QUOTE_NONE)
 
         if t_type == 'atp':
             df['Date'] = pd.to_datetime(df['Date'])

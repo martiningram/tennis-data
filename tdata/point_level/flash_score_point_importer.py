@@ -12,6 +12,8 @@ from tdata.point_level.monte_carlo.monte_carlo import Score as MCScore
 # TODO: Parse event and event round
 # TODO: Maybe rename one of the "Score" objects -- it's not great that
 # there are two.
+# TODO: Investigate why stats seem out of whack. Am I getting the serve order
+# right?
 
 class FlashScorePointImporter(object):
 
@@ -212,8 +214,6 @@ class FlashScorePointImporter(object):
 
         final_score = match_dict['player_scores']['final_score']
 
-        print(p1, p2, final_score)
-
         string_version = self.convert_to_string_score(final_score)
         parsed_score = Score(string_version, winner, loser)
 
@@ -237,6 +237,16 @@ class FlashScorePointImporter(object):
 
         return match
 
+    def get_match_generator(self, skip_on_error=False):
+        for cur_dict in self.all_loaded:
+            try:
+                yield self.parse_match(cur_dict)
+            except AssertionError as e:
+                if skip_on_error:
+                    print("Found error: {} but continuing.".format(e))
+                    continue
+                else:
+                    raise AssertionError(e)
 
 if __name__ == '__main__':
 
