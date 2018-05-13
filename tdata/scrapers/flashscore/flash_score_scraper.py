@@ -10,7 +10,7 @@ from tdata.scrapers.flashscore.flash_score_match_info import (
 
 class FlashScoreScraper(object):
 
-    def __init__(self, driver, max_delay=20):
+    def __init__(self, driver, max_delay=120):
 
         self.flash_score_site = 'https://www.flashscore.com.au'
         self.driver = driver
@@ -54,7 +54,7 @@ class FlashScoreScraper(object):
         self.driver.get(full_link)
 
         cur_source = wait_for_element_and_parse(
-            self.driver, 'fs-results', by=By.ID)
+            self.driver, 'fs-results', self.max_delay, by=By.ID)
 
         match_ids = self.find_match_ids(cur_source)
 

@@ -11,8 +11,10 @@ parser.add_argument('--no-cache', required=False, action='store_true')
 args = parser.parse_args()
 
 print('Starting web driver...')
-driver = webdriver.PhantomJS()
-driver.set_window_size(1120, 550)
+options = webdriver.ChromeOptions()
+options.add_argument('headless')
+options.add_argument('window-size=1200x600')
+driver = webdriver.Chrome(chrome_options=options)
 print('Started web driver.')
 
 scraper = FlashScoreScraper(driver)
