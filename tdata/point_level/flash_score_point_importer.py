@@ -68,6 +68,9 @@ class FlashScorePointImporter(object):
     @staticmethod
     def parse_service_game(service_game_str, server_is_first=True):
 
+        print(server_is_first)
+        print(service_game_str)
+
         old_score = (0, 0)
 
         # Split each point

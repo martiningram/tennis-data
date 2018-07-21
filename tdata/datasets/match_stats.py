@@ -2,7 +2,7 @@ class MatchStats(object):
     """Container class storing all information about a player's performance in
     a match. Add more optional stats as required."""
 
-    def __init__(self, player_name, pct_won_serve, pct_won_return, odds=None,
+    def __init__(self, player_name, pct_won_serve, pct_won_return,
                  pct_first_serve=None, pct_won_first_serve=None,
                  pct_won_second_serve=None, winners=None, ues=None):
 
@@ -17,8 +17,6 @@ class MatchStats(object):
 
         self.winners = winners
         self.ues = ues
-
-        self.odds = odds
 
     def __str__(self):
 

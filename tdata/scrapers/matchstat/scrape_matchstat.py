@@ -4,23 +4,15 @@ import ssl
 import json
 import glob
 import urllib2
-import logging
 import pandas as pd
 from pathlib import Path
 
 from datetime import date
 from bs4 import BeautifulSoup
-from tdata.utils.utils import retry
+from tdata.scrapers.utils import retry, fetch_logger
 
-# Set up logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
 
-# Make sure we write to log
-fh = logging.FileHandler('scrape_log.log')
-fh.setLevel(logging.DEBUG)
-logger.addHandler(fh)
-
+logger = fetch_logger(__name__, 'matchstat_log.log')
 
 class ScrapingException(Exception):
     pass

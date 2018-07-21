@@ -81,6 +81,10 @@ class FlashScoreMatchInfo(object):
     @staticmethod
     def get_point_sequence(point_by_point_page):
 
+        # FIXME: There is a problem here. It looks like at set changes, the
+        # "even" and "odd" distinction might reset, or something to that effect.
+        # This needs to be fixed, otherwise everything gets messed up...!
+
         odd_history = point_by_point_page.find_all(
             'tr', class_='odd fifteen')
 
