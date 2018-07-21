@@ -1,3 +1,6 @@
+import os
+import json
+from pathlib import Path
 from datetime import datetime
 
 from tdata.datasets.score import Score
@@ -6,6 +9,7 @@ from tdata.enums.t_type import (Tours, is_singles, is_standard_doubles,
                                 is_mixed_doubles)
 from tdata.scrapers.utils import (load_json_url, fetch_logger, prettify_json,
                                   load_html_page)
+from tdata.datasets.match_stats import MatchStats
 
 
 logger = fetch_logger(__name__, 'sofa_score.log')
@@ -13,17 +17,26 @@ logger = fetch_logger(__name__, 'sofa_score.log')
 
 class SofaScoreScraper(object):
 
-    def __init__(self, t_type=Tours.atp):
+    def __init__(self):
+
+        exec_dir = Path(os.path.abspath(__file__)).parents[3]
+        cache_dir = '{}/data/sofa_cache/'.format(exec_dir)
+        self.tournament_cache_dir = os.path.join(cache_dir, 'tournaments')
+        self.match_cache_dir = os.path.join(cache_dir, 'matches')
+
+        for cur_path in [self.tournament_cache_dir, self.match_cache_dir]:
+            if not os.path.isdir(cur_path):
+                os.makedirs(cur_path)
 
         self.base_url = 'https://www.sofascore.com'
 
         self.surface_lookup = {
             'Hardcourt indoor': Surfaces.indoor_hard,
-            'Clay': Surfaces.clay
+            'Clay': Surfaces.clay,
+            'Hardcourt outdoor': Surfaces.hard,
+            'Hard': Surfaces.hard,
+            'Grass': Surfaces.grass
         }
-
-        if t_type != Tours.atp:
-            raise Exception('Only ATP supported for now!')
 
     @property
     def season_ids(self):
@@ -93,34 +106,22 @@ class SofaScoreScraper(object):
         logger.debug('Fetched tournament list.')
         return lookup
 
+    @staticmethod
+    def entry_from_key_value_list(kv_list, key):
+
+        entry = [x['value'] for x in kv_list if x['name'] == key]
+        assert(len(entry) == 1)
+        return entry[0]
+
     def find_surface(self, tournament_json):
 
         t_info = tournament_json['tournamentInfo']['tennisTournamentInfo']
-
-        surface_entry = [
-            x['value'] for x in t_info if x['name'] == 'Ground type']
-
-        assert(len(surface_entry) == 1)
-
-        surface = self.surface_lookup[surface_entry[0]]
+        surface_entry = self.entry_from_key_value_list(t_info, 'Ground type')
+        surface = self.surface_lookup[surface_entry]
 
         return surface
 
-    def get_tournament_info(self, tournament_link, year):
-
-        tournament_id = tournament_link.split('/')[-1]
-
-        # Look up the season id
-        season_id = self.season_ids[year]
-
-        # Put together the link
-        subpage = '/u-tournament/{}/season/{}/json'.format(
-            tournament_id, season_id)
-
-        full_url = self.base_url + subpage
-
-        # Fetch the json
-        json_data = load_json_url(full_url)
+    def parse_tournament_json(self, json_data):
 
         # Extract match events
         team_events = json_data['teamEvents']
@@ -133,8 +134,43 @@ class SofaScoreScraper(object):
         match_ids = set([x['total'][0]['id'] for x in matches])
 
         surface = self.find_surface(json_data)
+        tournament_name = json_data['uniqueTournament']['name']
+        end_date = self.entry_from_key_value_list(
+            json_data['tournamentInfo']['tennisTournamentInfo'], 'End date')
+        end_date = datetime.fromtimestamp(float(end_date))
 
-        return match_ids
+        return {'match_ids': match_ids, 'surface': surface,
+                'tournament_name': tournament_name,
+                'end_date': end_date}
+
+    def get_tournament_data(self, tournament_link, year):
+
+        tournament_id = tournament_link.split('/')[-1]
+        season_id = self.season_ids[year]
+
+        subpage = '/u-tournament/{}/season/{}/json'.format(
+            tournament_id, season_id)
+
+        cache_file = os.path.join(
+            self.tournament_cache_dir, '{}_{}.json'.format(
+                tournament_id, season_id))
+
+        if os.path.isfile(cache_file):
+            with open(cache_file) as f:
+                json_data = json.load(f)
+            parsed = self.parse_tournament_json(json_data)
+        else:
+            full_url = self.base_url + subpage
+            json_data = load_json_url(full_url)
+            parsed = self.parse_tournament_json(json_data)
+
+            # Only cache if complete, i.e. we are past the end date of the
+            # tournament
+            if datetime.now() > parsed['end_date']:
+                with open(cache_file, 'w') as f:
+                    json.dump(json_data, f)
+
+        return parsed
 
     @staticmethod
     def to_score(winner_dict, loser_dict, winner_name, loser_name):
@@ -180,11 +216,8 @@ class SofaScoreScraper(object):
         home = event_details['homeTeam']
         away = event_details['awayTeam']
 
-        home_id = home['id']
-        away_id = away['id']
-
-        # This seems to be an abbreviated name. Maybe get the full name from
-        # elsewhere.
+        # TODO: This seems to be an abbreviated name. Maybe get the full name
+        # from elsewhere.
         home_name = home['name']
         away_name = away['name']
 
@@ -204,23 +237,68 @@ class SofaScoreScraper(object):
         score = SofaScoreScraper.to_score(winner_score, loser_score, winner,
                                           loser)
 
+        return {'winner': winner, 'loser': loser, 'score': score,
+                'date': match_date}
+
+    @staticmethod
+    def parse_statistics(player_statistics, home_name, away_name):
+
+        stats = dict()
+
+        for cur_player, cur_id in zip(
+                [home_name, away_name], ['home', 'away']):
+
+            cur_serve_played = player_statistics[cur_id + 'ServicePointsTotal']
+            cur_serve_won = player_statistics[cur_id + 'ServicePointsScored']
+
+            cur_return_played = player_statistcs[cur_id + 'ReceiverPointsTotal']
+            cur_return_won = player_statistics[cur_id + 'ReceiverPointsScored']
+
+            cur_stats = MatchStats(
+                cur_player,
+                serve_points_played=cur_serve_played,
+                serve_points_won=cur_serve_won,
+                return_points_played=cur_return_played,
+                return_points_won=cur_return_won
+            )
+
+            stats[cur_player] = cur_stats
+
+        return stats
+
     def get_match_data_from_id(self, match_id):
 
-        subpage = '/event/{}/json'.format(match_id)
-        full_url = self.base_url + subpage
-        json_data = load_json_url(full_url)
-        self.extract_match_summary(json_data)
-        return json_data
+        cache_path = os.path.join(
+            self.match_cache_dir, '{}.json'.format(match_id))
+
+        if os.path.isfile(cache_path):
+            with open(cache_path) as f:
+                json_data = json.load(f)
+            match_data = self.extract_match_data(json_data)
+        else:
+            subpage = '/event/{}/json'.format(match_id)
+            full_url = self.base_url + subpage
+            json_data = load_json_url(full_url)
+            match_data = self.extract_match_data(json_data)
+
+            if match_data['date'] < datetime.now():
+                with open(cache_path, 'w') as f:
+                    json.dump(json_data, f)
+
+        return match_data
 
     def parse_tournament(self, tournament_link, year):
 
         # Get match ids
-        match_ids = self.get_match_ids(tournament_link, year)
-        match_data = [self.get_match_data_from_id(x) for x in match_ids]
+        tournament_data = self.get_tournament_data(tournament_link, year)
+        match_data = [self.get_match_data_from_id(x) for x in
+                      tournament_data['match_ids']]
         return match_data
 
 if __name__ == '__main__':
 
     scraper = SofaScoreScraper()
     t_list = scraper.get_tournament_list()
-    print(scraper.get_tournament_info(t_list.items()[2][1], 2017))
+
+    for cur_t in t_list.items():
+        print(scraper.parse_tournament(cur_t[1], 2017))

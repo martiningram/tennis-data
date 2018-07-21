@@ -193,6 +193,8 @@ class MatchStatDataset(Dataset):
 
     def calculate_stats(self, winner, loser, row):
 
+        raise Exception('This function needs to be overhauled!')
+
         winners, ues, odds = None, None, None
 
         stats = dict()
