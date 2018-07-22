@@ -53,9 +53,15 @@ class Match(object):
             this class.
         """
 
-        info_dict = {'p1': self.p1, 'p2': self.p2, 'surface': self.surface,
-                     'tournament_name': self.tournament_name, 'date':
-                     self.date}
+        info_dict = {'p1': self.p1, 'p2': self.p2,
+                     'surface': self.surface.name,
+                     'tournament_name': self.tournament_name,
+                     'date': self.date}
+
+        if self.tournament_round is not None:
+            info_dict['round'] = self.tournament_round.name
+        else:
+            info_dict['round'] = None
 
         return info_dict
 
@@ -65,6 +71,8 @@ class Match(object):
         DataFrame."""
 
         results = list()
+
+        matches = sorted(matches, key=lambda x: x.date)
 
         for match in matches:
 
@@ -121,15 +129,23 @@ class CompletedMatch(Match):
 
         parent_dict = super(CompletedMatch, self).to_dict()
 
-        parent_dict.update({'winner': self.winner, 'loser': self.loser})
+        parent_dict.update({'winner': self.winner, 'loser': self.loser,
+                            'score': self.score})
 
         if self.stats is not None:
 
-            parent_dict.update({
-                'spw_winner': self.stats[self.winner].pct_won_serve,
-                'spw_loser': self.stats[self.loser].pct_won_serve,
-                'rpw_winner': self.stats[self.winner].pct_won_return,
-                'rpw_loser': self.stats[self.loser].pct_won_return})
+            winner_stats_dict = self.stats[self.winner].to_dict()
+            loser_stats_dict = self.stats[self.loser].to_dict()
+
+            winner_stats_dict = {x + '_winner': y for x, y in
+                                 winner_stats_dict.items()}
+
+            parent_dict.update(winner_stats_dict)
+
+            loser_stats_dict = {x + '_loser': y for x, y in
+                                loser_stats_dict.items()}
+
+            parent_dict.update(loser_stats_dict)
 
         if self.odds is not None:
 

@@ -3,13 +3,17 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-from tdata.datasets.score import Score
+from unidecode import unidecode
+
+from tdata.enums.round import Rounds
 from tdata.enums.surface import Surfaces
+from tdata.datasets.match import CompletedMatch
+from tdata.datasets.match_stats import MatchStats
+from tdata.datasets.score import Score, BadFormattingException
 from tdata.enums.t_type import (Tours, is_singles, is_standard_doubles,
                                 is_mixed_doubles)
 from tdata.scrapers.utils import (load_json_url, fetch_logger, prettify_json,
                                   load_html_page)
-from tdata.datasets.match_stats import MatchStats
 
 
 logger = fetch_logger(__name__, 'sofa_score.log')
@@ -36,6 +40,17 @@ class SofaScoreScraper(object):
             'Hardcourt outdoor': Surfaces.hard,
             'Hard': Surfaces.hard,
             'Grass': Surfaces.grass
+        }
+
+        # TODO: I think this is right, but could check
+        self.round_lookup = {
+            'Qualification': Rounds.qualifying,
+            '1/32': Rounds.last_64,
+            '1/16': Rounds.last_32,
+            '1/8': Rounds.last_16,
+            'Quarterfinals': Rounds.QF,
+            'Semifinals': Rounds.SF,
+            'Final': Rounds.F
         }
 
     @property
@@ -97,7 +112,7 @@ class SofaScoreScraper(object):
 
         return lookup
 
-    def get_tournament_list(self, t_type=Tours.atp, discard_doubles=True):
+    def get_tournament_list(self, t_type=Tours.atp):
 
         subpage = self.tournament_pages[t_type]
         full_url = self.base_url + subpage
@@ -123,15 +138,15 @@ class SofaScoreScraper(object):
 
     def parse_tournament_json(self, json_data):
 
-        # Extract match events
-        team_events = json_data['teamEvents']
+        event_list = json_data['events']['weekMatches']['tournaments'][0][
+            'events']
 
-        # Flatten the events
-        matches = [team_events[y][x] for y in team_events for x in
-                   team_events[y]]
+        match_ids = set([x['id'] for x in event_list])
+        rounds = [x.get('roundInfo') for x in event_list]
+        rounds = [self.round_lookup[x['name']] if x is not None else None for x
+                  in rounds]
 
-        # FIXME: These don't seem to be complete
-        match_ids = set([x['total'][0]['id'] for x in matches])
+        matches = [{'id': x, 'round': y} for x, y in zip(match_ids, rounds)]
 
         surface = self.find_surface(json_data)
         tournament_name = json_data['uniqueTournament']['name']
@@ -139,14 +154,16 @@ class SofaScoreScraper(object):
             json_data['tournamentInfo']['tennisTournamentInfo'], 'End date')
         end_date = datetime.fromtimestamp(float(end_date))
 
-        return {'match_ids': match_ids, 'surface': surface,
-                'tournament_name': tournament_name,
-                'end_date': end_date}
+        return {'matches': matches, 'surface': surface,
+                'tournament_name': tournament_name, 'end_date': end_date}
 
     def get_tournament_data(self, tournament_link, year):
 
         tournament_id = tournament_link.split('/')[-1]
         season_id = self.season_ids[year]
+
+        logger.debug('Fetching tournament data for {} in year {}...'.format(
+            tournament_link, year))
 
         subpage = '/u-tournament/{}/season/{}/json'.format(
             tournament_id, season_id)
@@ -156,6 +173,7 @@ class SofaScoreScraper(object):
                 tournament_id, season_id))
 
         if os.path.isfile(cache_file):
+            logger.debug('Using cache.')
             with open(cache_file) as f:
                 json_data = json.load(f)
             parsed = self.parse_tournament_json(json_data)
@@ -170,6 +188,8 @@ class SofaScoreScraper(object):
                 with open(cache_file, 'w') as f:
                     json.dump(json_data, f)
 
+        logger.debug('Parsed.')
+
         return parsed
 
     @staticmethod
@@ -177,9 +197,9 @@ class SofaScoreScraper(object):
 
         # TODO: Think about retirements.
 
-        # Find the periods
         periods = [x for x in winner_dict if 'period' in x
                    and 'TieBreak' not in x]
+        periods = sorted(periods, key=lambda x: int(x[-1]))
 
         set_scores = list()
 
@@ -218,8 +238,8 @@ class SofaScoreScraper(object):
 
         # TODO: This seems to be an abbreviated name. Maybe get the full name
         # from elsewhere.
-        home_name = home['name']
-        away_name = away['name']
+        home_name = unidecode(home['name'])
+        away_name = unidecode(away['name'])
 
         # Not sure -- check this
         home_won = event_details['winnerCode'] == 1
@@ -234,11 +254,22 @@ class SofaScoreScraper(object):
         winner_score = home_score if home_won else away_score
         loser_score = away_score if home_won else home_score
 
-        score = SofaScoreScraper.to_score(winner_score, loser_score, winner,
-                                          loser)
+        try:
+            score = SofaScoreScraper.to_score(winner_score, loser_score, winner,
+                                              loser)
+        except BadFormattingException:
+            logger.debug('Failed to parse score in match {}.'.format(
+                event_details['id']))
+            score = None
+
+        if match_json_data['statistics'] is not None:
+            statistics = SofaScoreScraper.parse_statistics(
+                match_json_data['statistics'], home_name, away_name)
+        else:
+            statistics = None
 
         return {'winner': winner, 'loser': loser, 'score': score,
-                'date': match_date}
+                'date': match_date, 'stats': statistics}
 
     @staticmethod
     def parse_statistics(player_statistics, home_name, away_name):
@@ -251,7 +282,7 @@ class SofaScoreScraper(object):
             cur_serve_played = player_statistics[cur_id + 'ServicePointsTotal']
             cur_serve_won = player_statistics[cur_id + 'ServicePointsScored']
 
-            cur_return_played = player_statistcs[cur_id + 'ReceiverPointsTotal']
+            cur_return_played = player_statistics[cur_id + 'ReceiverPointsTotal']
             cur_return_won = player_statistics[cur_id + 'ReceiverPointsScored']
 
             cur_stats = MatchStats(
@@ -268,10 +299,13 @@ class SofaScoreScraper(object):
 
     def get_match_data_from_id(self, match_id):
 
+        logger.debug('Parsing match data for match id {}...'.format(match_id))
+
         cache_path = os.path.join(
             self.match_cache_dir, '{}.json'.format(match_id))
 
         if os.path.isfile(cache_path):
+            logger.debug('Using cache.')
             with open(cache_path) as f:
                 json_data = json.load(f)
             match_data = self.extract_match_data(json_data)
@@ -285,20 +319,39 @@ class SofaScoreScraper(object):
                 with open(cache_path, 'w') as f:
                     json.dump(json_data, f)
 
+        logger.debug('Parsed.')
+
         return match_data
 
     def parse_tournament(self, tournament_link, year):
 
         # Get match ids
         tournament_data = self.get_tournament_data(tournament_link, year)
-        match_data = [self.get_match_data_from_id(x) for x in
-                      tournament_data['match_ids']]
-        return match_data
+
+        # Find the match ids
+        match_ids = [x['id'] for x in tournament_data['matches']]
+        match_data = [self.get_match_data_from_id(x) for x in match_ids]
+
+        # Make matches out of these, discarding those without a score
+        matches = [CompletedMatch(
+            x['winner'], x['loser'], x['date'], x['winner'], x['score'],
+            surface=tournament_data['surface'], stats=x['stats'],
+            tournament_round=y['round'],
+            tournament_name=tournament_data['tournament_name'])
+            for x, y in zip(match_data, tournament_data['matches']) if
+            x['score'] is not None]
+
+        return matches
 
 if __name__ == '__main__':
 
+    from tqdm import tqdm
+
     scraper = SofaScoreScraper()
     t_list = scraper.get_tournament_list()
-
-    for cur_t in t_list.items():
-        print(scraper.parse_tournament(cur_t[1], 2017))
+    all_matches = list()
+    for t in tqdm(t_list.items()):
+        matches = scraper.parse_tournament(t[1], 2017)
+        all_matches.extend(matches)
+    df = CompletedMatch.to_df(matches)
+    df.to_csv('all_2017.csv')

@@ -72,13 +72,9 @@ class Score(object):
                 raise BadFormattingException()
 
             # The first is definitely the number of games won by player 1:
-
             try:
-
                 p1_games = int(games[0])
-
             except ValueError:
-
                 raise BadFormattingException(string_score)
 
             # For p2, we need to check whether it went to a tiebreak:

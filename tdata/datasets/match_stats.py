@@ -8,8 +8,8 @@ class MatchStats(object):
 
         self.player_name = player_name
 
-        self.serve_points_won = server_points_won
-        self.serve_points_played = server_points_played
+        self.serve_points_won = serve_points_won
+        self.serve_points_played = serve_points_played
 
         self.return_points_won = return_points_won
         self.return_points_played = return_points_played
@@ -19,6 +19,17 @@ class MatchStats(object):
 
         self.winners = winners
         self.ues = ues
+
+    def to_dict(self):
+
+        return {'spw': self.pct_won_serve,
+                'rpw': self.pct_won_return,
+                'return_points_played': self.return_points_played,
+                'return_points_won': self.return_points_won,
+                'serve_points_played': self.serve_points_played,
+                'serve_points_won': self.serve_points_won,
+                'winners': self.winners,
+                'ues': self.ues}
 
     def __str__(self):
 
