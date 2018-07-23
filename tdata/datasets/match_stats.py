@@ -4,7 +4,7 @@ class MatchStats(object):
 
     def __init__(self, player_name, serve_points_played, serve_points_won,
                  return_points_played, return_points_won, winners=None,
-                 ues=None):
+                 ues=None, odds=None):
 
         self.player_name = player_name
 
@@ -14,11 +14,15 @@ class MatchStats(object):
         self.return_points_won = return_points_won
         self.return_points_played = return_points_played
 
-        self.pct_won_serve = serve_points_won / float(serve_points_played)
-        self.pct_won_return = return_points_won / float(return_points_played)
+        # TODO Is this right? Maybe they should be something else, like nan?
+        self.pct_won_serve = (None if serve_points_played == 0 else
+                              serve_points_won / float(serve_points_played))
+        self.pct_won_return = (None if return_points_played == 0 else
+                               return_points_won / float(return_points_played))
 
         self.winners = winners
         self.ues = ues
+        self.odds = odds
 
     def to_dict(self):
 

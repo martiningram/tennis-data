@@ -19,6 +19,10 @@ from tdata.scrapers.utils import (load_json_url, fetch_logger, prettify_json,
 logger = fetch_logger(__name__, 'sofa_score.log')
 
 
+class IncompleteException(Exception):
+    pass
+
+
 class SofaScoreScraper(object):
 
     def __init__(self):
@@ -138,6 +142,13 @@ class SofaScoreScraper(object):
 
     def parse_tournament_json(self, json_data):
 
+        tournament_name = json_data['uniqueTournament']['name']
+
+        if 'weekMatches' not in json_data['events']:
+            logger.debug('{} appears to be incomplete!'.format(
+                tournament_name))
+            raise IncompleteException()
+
         event_list = json_data['events']['weekMatches']['tournaments'][0][
             'events']
 
@@ -149,7 +160,6 @@ class SofaScoreScraper(object):
         matches = [{'id': x, 'round': y} for x, y in zip(match_ids, rounds)]
 
         surface = self.find_surface(json_data)
-        tournament_name = json_data['uniqueTournament']['name']
         end_date = self.entry_from_key_value_list(
             json_data['tournamentInfo']['tennisTournamentInfo'], 'End date')
         end_date = datetime.fromtimestamp(float(end_date))
@@ -351,7 +361,10 @@ if __name__ == '__main__':
     t_list = scraper.get_tournament_list()
     all_matches = list()
     for t in tqdm(t_list.items()):
-        matches = scraper.parse_tournament(t[1], 2017)
-        all_matches.extend(matches)
-    df = CompletedMatch.to_df(matches)
+        try:
+            matches = scraper.parse_tournament(t[1], 2017)
+            all_matches.extend(matches)
+        except IncompleteException:
+            continue
+    df = CompletedMatch.to_df(all_matches)
     df.to_csv('all_2017.csv')

@@ -193,20 +193,23 @@ class MatchStatDataset(Dataset):
 
     def calculate_stats(self, winner, loser, row):
 
-        raise Exception('This function needs to be overhauled!')
-
         winners, ues, odds = None, None, None
 
         stats = dict()
 
         for role, name in zip(['winner', 'loser'], [winner, loser]):
 
-            first_serve_pct = row['{}_first_serve_pct'.format(role)]
-            first_won_pct = row['{}_first_serve_won_pct'.format(role)]
-            second_won_pct = row['{}_second_serve_won_pct'.format(role)]
-            return_won_pct = row['{}_return_points_won_pct'.format(role)]
+            # First find return points won
+            other_role = 'winner' if role == 'loser' else 'loser'
 
-            serve_won_pct = row['{}_serve_points_won_pct'.format(role)]
+            rp_won = row['{}_return_points_won'.format(role)]
+            rp_out_of = row['{}_return_points_total'.format(role)]
+
+            other_rp_won = row['{}_return_points_won'.format(other_role)]
+            other_rp_out_of = row['{}_return_points_total'.format(other_role)]
+
+            sp_won = other_rp_out_of - other_rp_won
+            sp_out_of = other_rp_out_of
 
             if ('{}_winners'.format(role) in row and
                     not np.isnan(row['{}_winners'.format(role)])):
@@ -221,11 +224,10 @@ class MatchStatDataset(Dataset):
 
             # Construct the object
             stats[name] = MatchStats(
-                player_name=name, pct_won_serve=serve_won_pct,
-                pct_won_return=return_won_pct, odds=odds,
-                pct_first_serve=first_serve_pct,
-                pct_won_first_serve=first_won_pct,
-                pct_won_second_serve=second_won_pct, winners=winners, ues=ues)
+                player_name=name, serve_points_played=sp_out_of,
+                serve_points_won=sp_won, return_points_played=rp_out_of,
+                return_points_won=rp_won, odds=odds,
+                winners=winners, ues=ues)
 
         return stats
 
