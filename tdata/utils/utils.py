@@ -23,3 +23,23 @@ def plot_annotated_scatter(labels, xs, ys, plot_line=False):
         plt.plot(xs, np.polyval(coeff, xs))
 
     return plt
+
+
+def load_cached_json(cache_path):
+
+    if os.path.isfile(cache_path):
+        with open(cache_path) as f:
+            return json.load(f)
+    else:
+        raise IOError('File not found.')
+
+
+def is_cached(cache_path):
+
+    return os.path.isfile(cache_path)
+
+
+def save_to_cache(dictionary, cache_path):
+
+    with open(cache_path, 'w') as f:
+        json.dump(dictionary, f)

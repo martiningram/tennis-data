@@ -14,6 +14,7 @@ from tdata.enums.t_type import (Tours, is_singles, is_standard_doubles,
                                 is_mixed_doubles)
 from tdata.scrapers.utils import (load_json_url, fetch_logger, prettify_json,
                                   load_html_page)
+from tdata.utils.utils import load_cached_json, save_to_cache, is_cached
 
 
 logger = fetch_logger(__name__, 'sofa_score.log')
@@ -121,19 +122,38 @@ class SofaScoreScraper(object):
         for cur_link, cur_round in self.rounds_to_query.items():
 
             to_try = tournament_url + cur_link
+            cur_cache_file = os.path.join(
+                self.tournament_cache_dir, '{}_{}_{}.json'.format(
+                    tournament_id, season_id, cur_round.name))
 
+            if is_cached(cur_cache_file):
+                # Load the cache
+                json_data = load_cached_json(cur_cache_file)
+                # Continue if we don't have information.
+                if json_data.keys() == []:
+                    logger.debug(
+                        'Cached json is empty for round {} and link {}'.format(
+                            cur_link, to_try))
+                    continue
+            else:
+                # We need to fetch it instead
+                try:
+                    json_data = load_json_url(to_try)
+                    save_to_cache(json_data, cur_cache_file)
+                except ValueError:
+                    logger.debug(
+                        'No json found for round {} and link {}'.format(
+                            cur_link, to_try))
+                    # Store an empty json so that cache will work.
+                    save_to_cache({}, cur_cache_file)
+                    continue
+
+            # Now that we have the json data, try to extract the information.
             try:
-                json_data = load_json_url(to_try)
-                # Note: could also get round via
-                # ['roundMatches']['data']['roundName']
                 round_data = json_data['roundMatches']['tournaments'][0]
                 events = round_data['events']
                 to_add = [{'round': cur_round, 'id': x['id']} for x in events]
                 all_matches.extend(to_add)
-            except ValueError:
-                logger.debug('No json found for round {} and link {}'.format(
-                    cur_link, to_try))
-                continue
             except IndexError:
                 logger.debug('json record empty found for round {} '
                              'and link {}'.format(cur_link, to_try))
