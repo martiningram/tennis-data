@@ -248,10 +248,9 @@ class SofaScoreScraper(object):
             self.tournament_cache_dir, '{}_{}.json'.format(
                 tournament_id, season_id))
 
-        if os.path.isfile(cache_file):
+        if is_cached(cache_file):
             logger.debug('Using cache.')
-            with open(cache_file) as f:
-                json_data = json.load(f)
+            json_data = load_cached_json(cache_file)
             parsed = self.parse_tournament_json(json_data)
         else:
             json_data = load_json_url(full_url + '/json')
@@ -260,8 +259,7 @@ class SofaScoreScraper(object):
             # Only cache if complete, i.e. we are past the end date of the
             # tournament
             if datetime.now() > parsed['end_date']:
-                with open(cache_file, 'w') as f:
-                    json.dump(json_data, f)
+                save_to_cache(json_data, cache_file)
 
         parsed['matches'] = tournament_matches
 
@@ -381,10 +379,9 @@ class SofaScoreScraper(object):
         cache_path = os.path.join(
             self.match_cache_dir, '{}.json'.format(match_id))
 
-        if os.path.isfile(cache_path):
+        if is_cached(cache_path):
             logger.debug('Using cache.')
-            with open(cache_path) as f:
-                json_data = json.load(f)
+            json_data = load_cached_json(cache_path)
             match_data = self.extract_match_data(json_data)
         else:
             subpage = '/event/{}/json'.format(match_id)
@@ -393,8 +390,7 @@ class SofaScoreScraper(object):
             match_data = self.extract_match_data(json_data)
 
             if match_data['date'] < datetime.now():
-                with open(cache_path, 'w') as f:
-                    json.dump(json_data, f)
+                save_to_cache(json_data, cache_path)
 
         logger.debug('Parsed.')
 
