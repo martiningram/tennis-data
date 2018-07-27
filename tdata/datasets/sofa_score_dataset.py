@@ -102,9 +102,10 @@ class SofaScoreDataset(Dataset):
 
 if __name__ == '__main__':
 
-    # TODO: Maybe have an attribute called "start_date_is_exact" or something.
-    # Because for MatchStat, I used to adjust dates with the round. No need to
-    # do that (I think) with Sofa.
+    # TODO: Look for and handle retirements. One way to do this could be to add
+    # an "appears complete" function to the score. Another could be to see
+    # whether Sofascore has a field specifying whether it was a retirement,
+    # and maybe adding that to the score.
 
     import numpy as np
 
