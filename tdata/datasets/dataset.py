@@ -1,7 +1,7 @@
 import pandas as pd
 
 from itertools import chain
-from abc import abstractmethod
+from abc import abstractmethod, ABCMeta
 from datetime import timedelta, date
 from tdata.datasets.match import CompletedMatch
 from tdata.datasets.score import Score, BadFormattingException
@@ -16,10 +16,16 @@ class Dataset(object):
             recomputation.
     """
 
-    def __init__(self):
+    __metaclass__ = ABCMeta
+
+    def __init__(self, start_date_is_exact):
+
+        # TODO: Unclear how much of the code here is still used. May be ripe for
+        # a clean-up.
 
         self.tour_averages = dict()
         self.tournament_averages = dict()
+        self.start_date_is_exact = start_date_is_exact
 
         # Also add a lookup of tournament start dates:
         df = self.get_stats_df()
@@ -31,7 +37,8 @@ class Dataset(object):
         self.df_index = ['winner', 'loser', 'round', 'tournament_name', 'year']
 
         # Add an indexed dict version:
-        self.dict_version = self.get_stats_df().to_dict('index')
+        self.dict_version = self.get_stats_df().set_index(
+            self.df_index, drop=False).to_dict('index')
 
     def find_surface(self, tournament_name):
 
@@ -42,6 +49,8 @@ class Dataset(object):
         return unique_surfaces[0]
 
     def estimate_date_using_round(self, df):
+
+        assert(not self.start_date_is_exact)
 
         adjusted_dates = df['start_date'].copy()
 
@@ -335,4 +344,8 @@ class Dataset(object):
 
     @abstractmethod
     def get_stats_df(self):
+        pass
+
+    @abstractmethod
+    def calculate_stats(self, winner, loser, row):
         pass

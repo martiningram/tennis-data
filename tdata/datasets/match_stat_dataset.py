@@ -84,11 +84,9 @@ class MatchStatDataset(Dataset):
 
         concatenated['start_date'] = pd.to_datetime(concatenated['start_date'])
 
-        self.full_df = concatenated.set_index(
-            ['winner', 'loser', 'round', 'tournament_name', 'year'],
-            drop=False)
+        super(MatchStatDataset, self).__init__(start_date_is_exact=False)
 
-        super(MatchStatDataset, self).__init__()
+        self.full_df = concatenated.set_index(self.df_index, drop=False)
 
     def make_round_number(self, df):
 

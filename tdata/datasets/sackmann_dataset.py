@@ -55,11 +55,9 @@ class SackmannDataset(Dataset):
 
         big_df['year'] = big_df['start_date'].dt.year
 
-        self.full_df = big_df.set_index(
-            ['winner', 'loser', 'round', 'tournament_name', 'year'],
-            drop=False)
+        super(SackmannDataset, self).__init__(start_date_is_exact=False)
 
-        super(SackmannDataset, self).__init__()
+        self.full_df = big_df.set_index(self.df_index, drop=False)
 
     def make_round_number(self, df):
 
