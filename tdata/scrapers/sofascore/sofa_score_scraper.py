@@ -30,10 +30,12 @@ class SofaScoreScraper(object):
 
         exec_dir = Path(os.path.abspath(__file__)).parents[3]
         cache_dir = '{}/data/sofa_cache/'.format(exec_dir)
+        self.output_dir = '{}/data/sofa_csv/'.format(exec_dir)
         self.tournament_cache_dir = os.path.join(cache_dir, 'tournaments')
         self.match_cache_dir = os.path.join(cache_dir, 'matches')
 
-        for cur_path in [self.tournament_cache_dir, self.match_cache_dir]:
+        for cur_path in [self.tournament_cache_dir, self.match_cache_dir,
+                         self.output_dir]:
             if not os.path.isdir(cur_path):
                 os.makedirs(cur_path)
 
@@ -118,7 +120,8 @@ class SofaScoreScraper(object):
 
         return pages
 
-    def find_tournament_matches(self, tournament_url, tournament_id, season_id):
+    def find_tournament_matches(self, tournament_url, tournament_id, season_id,
+                                has_happened):
 
         all_matches = list()
         all_ids = set()
@@ -147,13 +150,16 @@ class SofaScoreScraper(object):
                 # We need to fetch it instead
                 try:
                     json_data = load_json_url(to_try)
-                    save_to_cache(json_data, cur_cache_file)
+
+                    if has_happened:
+                        save_to_cache(json_data, cur_cache_file)
                 except ValueError:
                     logger.debug(
                         'No json found for round {} and link {}'.format(
                             cur_link, to_try))
                     # Store an empty json so that cache will work.
-                    save_to_cache({}, cur_cache_file)
+                    if has_happened:
+                        save_to_cache({}, cur_cache_file)
                     continue
 
             # Now that we have the json data, try to extract the information.
@@ -253,9 +259,6 @@ class SofaScoreScraper(object):
 
         full_url = self.base_url + subpage
 
-        tournament_matches = self.find_tournament_matches(
-            full_url, tournament_id, season_id)
-
         cache_file = os.path.join(
             self.tournament_cache_dir, '{}_{}.json'.format(
                 tournament_id, season_id))
@@ -272,6 +275,11 @@ class SofaScoreScraper(object):
             # tournament
             if datetime.now() > parsed['end_date']:
                 save_to_cache(json_data, cache_file)
+
+        has_happened = datetime.now() > parsed['end_date']
+
+        tournament_matches = self.find_tournament_matches(
+            full_url, tournament_id, season_id, has_happened)
 
         parsed['matches'] = tournament_matches
 
@@ -430,15 +438,12 @@ class SofaScoreScraper(object):
 
         return matches
 
-if __name__ == '__main__':
+    def scrape_year(self, year, t_type=Tours.atp):
 
-    from tqdm import tqdm
+        t_list = scraper.get_tournament_list()
 
-    scraper = SofaScoreScraper()
-    t_list = scraper.get_tournament_list()
-    all_matches = list()
-    for year in [2017, 2018]:
         for t in tqdm(t_list.items()):
+
             try:
                 matches = scraper.parse_tournament(t[1], year)
                 all_matches.extend(matches)
@@ -446,6 +451,27 @@ if __name__ == '__main__':
                 continue
             except ValueError:
                 continue
-    df = CompletedMatch.to_df(all_matches)
-    print(df)
-    df.to_csv('all_matches.csv')
+
+        df = CompletedMatch.to_df(all_matches)
+
+        target_dir = os.path.join(self.output_dir, t_type.name)
+
+        if not os.path.isdir(target_dir):
+            os.makedirs(target_dir)
+
+        target_path = os.path.join(target_dir, '{}.csv'.format(year))
+
+        df.to_csv(target_path)
+
+if __name__ == '__main__':
+
+    # TODO: Check that tournaments in the future are definitely skipped and that
+    # there is no mistaken caching.
+
+    from tqdm import tqdm
+
+    scraper = SofaScoreScraper()
+    t_list = scraper.get_tournament_list()
+    all_matches = list()
+    for year in [2018, 2017]:
+        scraper.scrape_year(year, t_type=Tours.atp)

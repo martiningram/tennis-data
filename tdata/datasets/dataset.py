@@ -336,7 +336,3 @@ class Dataset(object):
     @abstractmethod
     def get_stats_df(self):
         pass
-
-    @abstractmethod
-    def get_player_df(self):
-        pass

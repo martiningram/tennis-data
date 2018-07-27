@@ -74,10 +74,6 @@ class SackmannDataset(Dataset):
 
         return self.full_df
 
-    def get_player_df(self):
-
-        return self.by_players
-
     def rename_cols(self, df):
 
         # Rename for consistency:

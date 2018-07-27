@@ -103,10 +103,6 @@ class MatchStatDataset(Dataset):
 
         return self.full_df
 
-    def get_player_df(self):
-
-        return self.by_players
-
     def calculate_percentages(self, df, add_dfs=True):
 
         results = dict()

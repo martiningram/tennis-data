@@ -45,3 +45,10 @@ def save_to_cache(dictionary, cache_path):
 
     with open(cache_path, 'w') as f:
         json.dump(dictionary, f)
+
+
+def base_name_from_path(full_path):
+
+    with_ext = os.path.split(full_path)[-1]
+
+    return os.path.splitext(with_ext)[0]
