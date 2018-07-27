@@ -79,6 +79,9 @@ class SofaScoreScraper(object):
         self.rounds_to_query = {'matches/round/' + x: y for x, y in
                                 round_lookup.items()}
 
+        self.rounds_numbers = {x: i for i, x in enumerate(
+            self.rounds_to_query.keys())}
+
     @property
     def season_ids(self):
 
@@ -118,15 +121,20 @@ class SofaScoreScraper(object):
     def find_tournament_matches(self, tournament_url, tournament_id, season_id):
 
         all_matches = list()
+        all_ids = set()
 
         for cur_link, cur_round in self.rounds_to_query.items():
+
+            logger.debug('Scraping round {} for tournament {}'.format(
+                cur_round, tournament_id))
 
             to_try = tournament_url + cur_link
             cur_cache_file = os.path.join(
                 self.tournament_cache_dir, '{}_{}_{}.json'.format(
-                    tournament_id, season_id, cur_round.name))
+                    tournament_id, season_id, self.rounds_numbers[cur_link]))
 
             if is_cached(cur_cache_file):
+                logger.debug('Loading cached file.')
                 # Load the cache
                 json_data = load_cached_json(cur_cache_file)
                 # Continue if we don't have information.
@@ -152,8 +160,10 @@ class SofaScoreScraper(object):
             try:
                 round_data = json_data['roundMatches']['tournaments'][0]
                 events = round_data['events']
-                to_add = [{'round': cur_round, 'id': x['id']} for x in events]
+                to_add = [{'round': cur_round, 'id': x['id']} for x in events
+                          if x['id'] not in all_ids]
                 all_matches.extend(to_add)
+                all_ids |= set([x['id'] for x in events])
             except IndexError:
                 logger.debug('json record empty found for round {} '
                              'and link {}'.format(cur_link, to_try))
@@ -197,7 +207,9 @@ class SofaScoreScraper(object):
     def entry_from_key_value_list(kv_list, key):
 
         entry = [x['value'] for x in kv_list if x['name'] == key]
-        assert(len(entry) == 1)
+        assert(len(entry) <= 1)
+        if len(entry) == 0:
+            raise IncompleteException()
         return entry[0]
 
     def find_surface(self, tournament_json):
@@ -241,8 +253,8 @@ class SofaScoreScraper(object):
 
         full_url = self.base_url + subpage
 
-        tournament_matches = self.find_tournament_matches(full_url, season_id,
-                                                          tournament_id)
+        tournament_matches = self.find_tournament_matches(
+            full_url, tournament_id, season_id)
 
         cache_file = os.path.join(
             self.tournament_cache_dir, '{}_{}.json'.format(
@@ -253,7 +265,7 @@ class SofaScoreScraper(object):
             json_data = load_cached_json(cache_file)
             parsed = self.parse_tournament_json(json_data)
         else:
-            json_data = load_json_url(full_url + '/json')
+            json_data = load_json_url(full_url + 'json')
             parsed = self.parse_tournament_json(json_data)
 
             # Only cache if complete, i.e. we are past the end date of the
@@ -337,7 +349,8 @@ class SofaScoreScraper(object):
                 event_details['id']))
             score = None
 
-        if match_json_data['statistics'] is not None:
+        if (match_json_data['statistics'] is not None
+                and 'homeServicePointsTotal' in match_json_data['statistics']):
             statistics = SofaScoreScraper.parse_statistics(
                 match_json_data['statistics'], home_name, away_name)
         else:
@@ -376,6 +389,7 @@ class SofaScoreScraper(object):
 
         logger.debug('Parsing match data for match id {}...'.format(match_id))
 
+        # TODO: Could make a function handling the path generation instead.
         cache_path = os.path.join(
             self.match_cache_dir, '{}.json'.format(match_id))
 
@@ -423,14 +437,15 @@ if __name__ == '__main__':
     scraper = SofaScoreScraper()
     t_list = scraper.get_tournament_list()
     all_matches = list()
-    for t in tqdm(t_list.items()[1:]):
-        try:
-            matches = scraper.parse_tournament(t[1], 2017)
-            all_matches.extend(matches)
-        except IncompleteException:
-            continue
-
-        df = CompletedMatch.to_df(all_matches)
-        print(df)
-        exit()
-    df.to_csv('all_2017.csv')
+    for year in [2017, 2018]:
+        for t in tqdm(t_list.items()):
+            try:
+                matches = scraper.parse_tournament(t[1], year)
+                all_matches.extend(matches)
+            except IncompleteException:
+                continue
+            except ValueError:
+                continue
+    df = CompletedMatch.to_df(all_matches)
+    print(df)
+    df.to_csv('all_matches.csv')
