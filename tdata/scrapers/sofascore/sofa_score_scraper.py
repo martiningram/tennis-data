@@ -356,6 +356,10 @@ class SofaScoreScraper(object):
             logger.debug('Failed to parse score in match {}.'.format(
                 event_details['id']))
             score = None
+        except KeyError:
+            logger.debug('There was an issue parsing match {}.'.format(
+                event_details['id']))
+            score = None
 
         if (match_json_data['statistics'] is not None
                 and 'homeServicePointsTotal' in match_json_data['statistics']):
@@ -473,5 +477,7 @@ if __name__ == '__main__':
     scraper = SofaScoreScraper()
     t_list = scraper.get_tournament_list()
     all_matches = list()
-    for year in [2018, 2017]:
+    for year in sorted(scraper.season_ids.keys(), reverse=True):
+        logger.debug('Scraping year {}'.format(year))
         scraper.scrape_year(year, t_type=Tours.atp)
+        logger.debug('Done scraping year {}'.format(year))
