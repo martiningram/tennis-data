@@ -37,6 +37,9 @@ class SofaScoreDataset(Dataset):
         # For now, drop qualifying
         combined = combined[~(combined['round'] == 'qualifying')]
 
+        # Also drop retirements
+        combined = combined[~combined['was_retirement']]
+
         # Rename date to start_date
         self.df = combined.rename(columns={'date': 'start_date'})
 
@@ -54,8 +57,7 @@ class SofaScoreDataset(Dataset):
     @staticmethod
     def check_unique(df):
 
-        unique_to_check = [['winner', 'loser', 'tournament_name', 'round'],
-                           ['winner', 'loser', 'start_date']]
+        unique_to_check = [['winner', 'loser', 'start_date']]
 
         for cur_check in unique_to_check:
 

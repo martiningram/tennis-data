@@ -170,6 +170,9 @@ class SofaScoreScraper(object):
                           if x['id'] not in all_ids]
                 all_matches.extend(to_add)
                 all_ids |= set([x['id'] for x in events])
+
+                assert(len(all_matches) == len(all_ids))
+
             except IndexError:
                 logger.debug('json record empty found for round {} '
                              'and link {}'.format(cur_link, to_try))
@@ -322,10 +325,8 @@ class SofaScoreScraper(object):
     @staticmethod
     def extract_match_data(match_json_data):
 
-        # TODO: Add surface; return a CompletedMatch.
-        # Later: Add stats.
-        # Also: look into making a surface enum, and stuff like that.
         event_details = match_json_data['event']
+        was_finished = event_details['statusDescription'] == 'FT'
 
         # Let's find winner and loser
         home = event_details['homeTeam']
@@ -369,7 +370,8 @@ class SofaScoreScraper(object):
             statistics = None
 
         return {'winner': winner, 'loser': loser, 'score': score,
-                'date': match_date, 'stats': statistics}
+                'date': match_date, 'stats': statistics,
+                'was_finished': was_finished}
 
     @staticmethod
     def parse_statistics(player_statistics, home_name, away_name):
@@ -429,6 +431,7 @@ class SofaScoreScraper(object):
 
         # Find the match ids
         match_ids = [x['id'] for x in tournament_data['matches']]
+        assert(len(set(match_ids)) == len(match_ids))
         match_data = [self.get_match_data_from_id(x) for x in match_ids]
 
         # Make matches out of these, discarding those without a score
@@ -436,13 +439,17 @@ class SofaScoreScraper(object):
             x['winner'], x['loser'], x['date'], x['winner'], x['score'],
             surface=tournament_data['surface'], stats=x['stats'],
             tournament_round=y['round'],
-            tournament_name=tournament_data['tournament_name'])
+            tournament_name=tournament_data['tournament_name'],
+            additional_info={'sofa_id': y['id']},
+            was_retirement=not x['was_finished'])
             for x, y in zip(match_data, tournament_data['matches']) if
             x['score'] is not None]
 
         return matches
 
     def scrape_year(self, year, t_type=Tours.atp):
+
+        all_matches = list()
 
         t_list = scraper.get_tournament_list()
 
@@ -476,7 +483,6 @@ if __name__ == '__main__':
 
     scraper = SofaScoreScraper()
     t_list = scraper.get_tournament_list()
-    all_matches = list()
     for year in sorted(scraper.season_ids.keys(), reverse=True):
         logger.debug('Scraping year {}'.format(year))
         scraper.scrape_year(year, t_type=Tours.atp)

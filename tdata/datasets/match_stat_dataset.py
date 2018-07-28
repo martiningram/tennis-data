@@ -84,6 +84,8 @@ class MatchStatDataset(Dataset):
 
         concatenated['start_date'] = pd.to_datetime(concatenated['start_date'])
 
+        self.full_df = concatenated
+
         super(MatchStatDataset, self).__init__(start_date_is_exact=False)
 
         self.full_df = concatenated.set_index(self.df_index, drop=False)

@@ -52,3 +52,27 @@ def base_name_from_path(full_path):
     with_ext = os.path.split(full_path)[-1]
 
     return os.path.splitext(with_ext)[0]
+
+
+def flatten_nested_dict(nested_dict, accumulator, connector='_'):
+
+    dict_keys = [x for x, y in nested_dict.items() if type(y) == dict]
+    non_dict = list(set(nested_dict.keys()) - set(dict_keys))
+
+    if len(non_dict) == len(nested_dict):
+        return {accumulator + x: y for x, y in nested_dict.items()}
+
+    # Otherwise:
+    already_ok = {accumulator + x: y
+                  for x, y in nested_dict.items() if x in non_dict}
+
+    not_ok_keys = set(dict_keys) - set(non_dict)
+
+    for cur_key in not_ok_keys:
+
+        already_ok.update(flatten_nested_dict(
+            nested_dict[cur_key],
+            accumulator + cur_key + connector,
+            connector=connector))
+
+    return already_ok

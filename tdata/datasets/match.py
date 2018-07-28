@@ -1,4 +1,5 @@
 import pandas as pd
+from tdata.utils.utils import flatten_nested_dict
 
 
 class Match(object):
@@ -15,7 +16,8 @@ class Match(object):
     """
 
     def __init__(self, p1, p2, date, best_of_five, surface=None,
-                 tournament_name=None, tournament_round=None):
+                 tournament_name=None, tournament_round=None,
+                 additional_info=None):
 
         self.p1 = p1
         self.p2 = p2
@@ -25,6 +27,7 @@ class Match(object):
         self.tournament_name = tournament_name
         self.tournament_round = tournament_round
         self.opponent_dict = {self.p1: self.p2, self.p2: self.p1}
+        self.additional_info = additional_info
 
     def get_opponent(self, player):
         """Returns the player faced by the player given.
@@ -57,6 +60,10 @@ class Match(object):
                      'surface': self.surface.name,
                      'tournament_name': self.tournament_name,
                      'date': self.date}
+
+        # Flatten additional info if it exists
+        if self.additional_info is not None:
+            info_dict.update(flatten_nested_dict(self.additional_info, ''))
 
         if self.tournament_round is not None:
             info_dict['round'] = self.tournament_round.name
@@ -98,11 +105,13 @@ class CompletedMatch(Match):
 
     def __init__(self, p1, p2, date, winner, score, surface=None, stats=None,
                  points=None, tournament_name=None, tournament_round=None,
-                 odds=None, final_point_level_info=None):
+                 odds=None, final_point_level_info=None, additional_info=None,
+                 was_retirement=None):
 
         super(CompletedMatch, self).__init__(
             p1=p1, p2=p2, best_of_five=score.bo5, date=date, surface=surface,
-            tournament_name=tournament_name, tournament_round=tournament_round)
+            tournament_name=tournament_name, tournament_round=tournament_round,
+            additional_info=additional_info)
 
         assert(winner in [p1, p2])
 
@@ -117,6 +126,7 @@ class CompletedMatch(Match):
         self.odds = odds
         self.score = score
         self.final_point_level_info = final_point_level_info
+        self.was_retirement = was_retirement
 
     def to_dict(self):
         """Converts the CompletedMatch object to a dictionary representation.
@@ -152,6 +162,10 @@ class CompletedMatch(Match):
             parent_dict.update({
                 'odds_winner': self.odds[self.winner],
                 'odds_loser': self.odds[self.loser]})
+
+        if self.was_retirement is not None:
+
+            parent_dict['was_retirement'] = self.was_retirement
 
         return parent_dict
 
