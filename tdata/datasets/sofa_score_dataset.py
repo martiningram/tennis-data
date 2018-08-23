@@ -43,6 +43,10 @@ class SofaScoreDataset(Dataset):
         # Rename date to start_date
         self.df = combined.rename(columns={'date': 'start_date'})
 
+        self.df = self.fix_world_tour_finals(self.df)
+
+        self.df = self.df.dropna(subset=['round'])
+
         # TODO: Is this slow? Could do something more efficient.
         self.df['round_number'] = [Rounds[x].value for x in
                                    self.df['round'].values]
@@ -53,6 +57,31 @@ class SofaScoreDataset(Dataset):
 
         self.df = self.df.set_index(self.df_index, drop=False)
 
+    def fix_world_tour_finals(self, df):
+
+        # WARNING: This is a bit of a band-aid and may fail.
+        df = df.sort_values('start_date')
+        tf_rows = df.loc[df['tournament_name'] == 'Tour Finals London']
+        years = np.unique(tf_rows['start_date'].dt.year)
+
+        for cur_year in years:
+
+            cur_relevant = tf_rows.loc[
+                tf_rows['start_date'].dt.year == cur_year, 'round']
+
+            # Last match is final
+            cur_relevant.iloc[-1] = Rounds.F.name
+
+            # Two before that are semis
+            cur_relevant.iloc[-2] = Rounds.SF.name
+            cur_relevant.iloc[-3] = Rounds.SF.name
+
+            # All before are round robin.
+            cur_relevant.iloc[:-3] = Rounds.RR.name
+
+            df.loc[cur_relevant.index, 'round'] = cur_relevant
+
+        return df
 
     @staticmethod
     def check_unique(df):

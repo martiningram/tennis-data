@@ -49,40 +49,33 @@ class SofaScoreScraper(object):
             'Grass': Surfaces.grass
         }
 
-        # TODO: I think this is right, but could check
-        # self.round_lookup = {
-        #     'Qualification': Rounds.qualifying,
-        #     '1/64': Rounds.last_128,
-        #     '1/32': Rounds.last_64,
-        #     '1/16': Rounds.last_32,
-        #     '1/8': Rounds.last_16,
-        #     'Quarterfinals': Rounds.QF,
-        #     'Semifinals': Rounds.SF,
-        #     'Final': Rounds.F
-        # }
+        self.rounds_numbers = {x: i for i, x in enumerate(
+            sorted(self.rounds_to_query.keys()))}
 
-        # Could make this more granular
+    @property
+    def rounds_to_query(self):
+
+        # TODO: Could make this more granular (break down qualifying rounds)
         round_lookup = {'44/Qualification?': Rounds.qualifying,
                         '45/Qualification?': Rounds.qualifying,
                         '46/Qualification?': Rounds.qualifying,
                         '54/Qualification?': Rounds.qualifying,
                         '23/R128?': Rounds.last_128,
-                        '23/1-64-finals%20(R128)?': Rounds.last_128,
-                        '24/1/32?': Rounds.last_64,
+                        '23/1/64-finals%20(R128)?': Rounds.last_128,
                         '24/1/32-finals%20(R64)?': Rounds.last_64,
-                        '25/1/16?': Rounds.last_32,
                         '25/1/16-finals%20(R32)?': Rounds.last_32,
-                        '26/1/8?': Rounds.last_16,
                         '26/1/8-finals%20(R16)': Rounds.last_16,
+                        '24/1/32?': Rounds.last_64,
+                        '25/1/16?': Rounds.last_32,
+                        '26/1/8?': Rounds.last_16,
                         '27/Quarterfinals?': Rounds.QF,
                         '28/Semifinals?': Rounds.SF,
                         '29/Final?': Rounds.F}
 
-        self.rounds_to_query = {'matches/round/' + x: y for x, y in
-                                round_lookup.items()}
+        rounds_to_query = {'matches/round/' + x: y for x, y in
+                           round_lookup.items()}
 
-        self.rounds_numbers = {x: i for i, x in enumerate(
-            self.rounds_to_query.keys())}
+        return rounds_to_query
 
     @property
     def season_ids(self):
@@ -136,7 +129,7 @@ class SofaScoreScraper(object):
                 self.tournament_cache_dir, '{}_{}_{}.json'.format(
                     tournament_id, season_id, self.rounds_numbers[cur_link]))
 
-            if is_cached(cur_cache_file):
+            if is_cached(cur_cache_file) and has_happened:
                 logger.debug('Loading cached file.')
                 # Load the cache
                 json_data = load_cached_json(cur_cache_file)
@@ -153,6 +146,9 @@ class SofaScoreScraper(object):
 
                     if has_happened:
                         save_to_cache(json_data, cur_cache_file)
+                    else:
+                        logger.debug('Not caching since tournament is not'
+                                     ' certain to be over.')
                 except ValueError:
                     logger.debug(
                         'No json found for round {} and link {}'.format(
@@ -160,6 +156,9 @@ class SofaScoreScraper(object):
                     # Store an empty json so that cache will work.
                     if has_happened:
                         save_to_cache({}, cur_cache_file)
+                    else:
+                        logger.debug('Not caching since tournament is not'
+                                     ' certain to be over.')
                     continue
 
             # Now that we have the json data, try to extract the information.
@@ -209,6 +208,8 @@ class SofaScoreScraper(object):
         full_url = self.base_url + subpage
         logger.debug('Fetching tournament list...')
         lookup = self.parse_tournament_html(full_url, t_type)
+        logger.debug('Manually adding Montreal.')
+        lookup['Montreal'] = '/tournament/tennis/atp/montreal/2390'
         logger.debug('Fetched tournament list.')
         return lookup
 
@@ -233,21 +234,25 @@ class SofaScoreScraper(object):
 
         tournament_name = json_data['uniqueTournament']['name']
 
-        if 'weekMatches' not in json_data['events']:
-            logger.debug('{} appears to be incomplete!'.format(
-                tournament_name))
-            raise IncompleteException()
-
-        event_list = json_data['events']['weekMatches']['tournaments'][0][
-            'events']
-
         surface = self.find_surface(json_data)
-        end_date = self.entry_from_key_value_list(
-            json_data['tournamentInfo']['tennisTournamentInfo'], 'End date')
-        end_date = datetime.fromtimestamp(float(end_date))
+        end_date = json_data['tournamentInfo']['endDate']
+        end_date = datetime.fromtimestamp(int(end_date))
 
         return {'surface': surface, 'tournament_name': tournament_name,
                 'end_date': end_date}
+
+    def fetch_week_matches(self, json_data):
+
+        all_ids = set()
+
+        tournaments = json_data['events']['weekMatches']['tournaments']
+
+        for cur_ts in tournaments:
+            for cur_event in cur_ts['events']:
+                all_ids.add(cur_event['id'])
+
+        # The rounds are unknown, so:
+        return [{'id': x, 'round': None} for x in all_ids]
 
     def get_tournament_data(self, tournament_link, year):
 
@@ -266,7 +271,15 @@ class SofaScoreScraper(object):
             self.tournament_cache_dir, '{}_{}.json'.format(
                 tournament_id, season_id))
 
-        if is_cached(cache_file):
+        # Tournament start date and end dates are unreliable. Only cache
+        # previous years.
+        has_happened = year < datetime.now().year
+
+        # TODO: Potentially, the end dates _are_ reliable for the current year.
+        # Investigate.
+        # TODO: Consider deleting cache for 2018.
+
+        if is_cached(cache_file) and has_happened:
             logger.debug('Using cache.')
             json_data = load_cached_json(cache_file)
             parsed = self.parse_tournament_json(json_data)
@@ -276,13 +289,18 @@ class SofaScoreScraper(object):
 
             # Only cache if complete, i.e. we are past the end date of the
             # tournament
-            if datetime.now() > parsed['end_date']:
+            if has_happened:
                 save_to_cache(json_data, cache_file)
-
-        has_happened = datetime.now() > parsed['end_date']
 
         tournament_matches = self.find_tournament_matches(
             full_url, tournament_id, season_id, has_happened)
+
+        if ('hasRounds' in json_data['events'] and
+                not json_data['events']['hasRounds']):
+            week_ids = self.fetch_week_matches(json_data)
+            already_present = set([x['id'] for x in tournament_matches])
+            to_add = [x for x in week_ids if x['id'] not in already_present]
+            tournament_matches.extend(to_add)
 
         parsed['matches'] = tournament_matches
 
@@ -325,30 +343,36 @@ class SofaScoreScraper(object):
     @staticmethod
     def extract_match_data(match_json_data):
 
-        event_details = match_json_data['event']
-        was_finished = event_details['statusDescription'] == 'FT'
+        try:
 
-        # Let's find winner and loser
-        home = event_details['homeTeam']
-        away = event_details['awayTeam']
+            event_details = match_json_data['event']
+            was_finished = event_details['statusDescription'] == 'FT'
 
-        # TODO: This seems to be an abbreviated name. Maybe get the full name
-        # from elsewhere.
-        home_name = unidecode(home['name'])
-        away_name = unidecode(away['name'])
+            # Let's find winner and loser
+            home = event_details['homeTeam']
+            away = event_details['awayTeam']
 
-        # Not sure -- check this
-        home_won = event_details['winnerCode'] == 1
-        winner = home_name if home_won else away_name
-        loser = home_name if not home_won else away_name
-        match_date = datetime.fromtimestamp(event_details['startTimestamp'])
+            # TODO: This seems to be an abbreviated name. Maybe get the full name
+            # from elsewhere.
+            home_name = unidecode(home['name'])
+            away_name = unidecode(away['name'])
 
-        # Extract the score
-        away_score = event_details['awayScore']
-        home_score = event_details['homeScore']
+            # Not sure -- check this
+            home_won = event_details['winnerCode'] == 1
+            winner = home_name if home_won else away_name
+            loser = home_name if not home_won else away_name
+            match_date = datetime.fromtimestamp(event_details['startTimestamp'])
 
-        winner_score = home_score if home_won else away_score
-        loser_score = away_score if home_won else home_score
+            # Extract the score
+            away_score = event_details['awayScore']
+            home_score = event_details['homeScore']
+
+            winner_score = home_score if home_won else away_score
+            loser_score = away_score if home_won else home_score
+
+        except KeyError:
+            logger.debug('KeyError when extracting match data.')
+            raise IncompleteException()
 
         try:
             score = SofaScoreScraper.to_score(winner_score, loser_score, winner,
@@ -432,7 +456,17 @@ class SofaScoreScraper(object):
         # Find the match ids
         match_ids = [x['id'] for x in tournament_data['matches']]
         assert(len(set(match_ids)) == len(match_ids))
-        match_data = [self.get_match_data_from_id(x) for x in match_ids]
+
+        match_data = list()
+
+        for cur_id in match_ids:
+            try:
+                cur_match_data = self.get_match_data_from_id(cur_id)
+                match_data.append(cur_match_data)
+            except IncompleteException:
+                # TODO: Think about whether this is OK. Basically, we're
+                # skipping incomplete matches in tournaments.
+                continue
 
         # Make matches out of these, discarding those without a score
         matches = [CompletedMatch(
@@ -476,8 +510,7 @@ class SofaScoreScraper(object):
 
 if __name__ == '__main__':
 
-    # TODO: Check that tournaments in the future are definitely skipped and that
-    # there is no mistaken caching.
+    # TODO: Skip scraping tournaments that haven't started yet.
 
     from tqdm import tqdm
 
