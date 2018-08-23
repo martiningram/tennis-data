@@ -82,7 +82,7 @@ class SofaScoreScraper(object):
 
         # These could be scraped, but manually state them for now.
         # TODO: Maybe use beautifulsoup to scrape instead.
-        season_ids = {
+        atp_season_ids = {
             2018: 15801,
             2017: 12805,
             2016: 11183,
@@ -94,6 +94,22 @@ class SofaScoreScraper(object):
             2010: 11196,
             2009: 11192
         }
+
+        # Add the ATP part
+        season_ids = {(x, Tours.atp): y for x, y in atp_season_ids.items()}
+
+        # WTA appears to be identical until the last three years
+        wta_changes = {
+            2018: 15802,
+            2017: 12809,
+            2016: 11216
+        }
+
+        wta_ids = atp_season_ids.copy()
+        wta_ids.update(wta_changes)
+        wta_ids = {(x, Tours.wta): y for x,y in wta_ids.items()}
+
+        season_ids.update(wta_ids)
 
         return season_ids
 
@@ -225,6 +241,9 @@ class SofaScoreScraper(object):
 
     def find_surface(self, tournament_json):
 
+        if tournament_json['tournamentInfo'] is None:
+            raise IncompleteException('Tournament appears to be incomplete!')
+
         t_info = tournament_json['tournamentInfo']['tennisTournamentInfo']
         surface_entry = self.entry_from_key_value_list(t_info, 'Ground type')
         surface = self.surface_lookup[surface_entry]
@@ -255,10 +274,10 @@ class SofaScoreScraper(object):
         # The rounds are unknown, so:
         return [{'id': x, 'round': None} for x in all_ids]
 
-    def get_tournament_data(self, tournament_link, year):
+    def get_tournament_data(self, tournament_link, year, t_type):
 
         tournament_id = tournament_link.split('/')[-1]
-        season_id = self.season_ids[year]
+        season_id = self.season_ids[(year, t_type)]
 
         logger.debug('Fetching tournament data for {} in year {}...'.format(
             tournament_link, year))
@@ -449,10 +468,11 @@ class SofaScoreScraper(object):
 
         return match_data
 
-    def parse_tournament(self, tournament_link, year):
+    def parse_tournament(self, tournament_link, year, t_type):
 
         # Get match ids
-        tournament_data = self.get_tournament_data(tournament_link, year)
+        tournament_data = self.get_tournament_data(
+            tournament_link, year, t_type)
 
         # Find the match ids
         match_ids = [x['id'] for x in tournament_data['matches']]
@@ -491,7 +511,7 @@ class SofaScoreScraper(object):
         for t in tqdm(t_list.items()):
 
             try:
-                matches = scraper.parse_tournament(t[1], year)
+                matches = scraper.parse_tournament(t[1], year, t_type)
                 all_matches.extend(matches)
             except IncompleteException:
                 continue
@@ -516,12 +536,8 @@ if __name__ == '__main__':
     from tqdm import tqdm
 
     scraper = SofaScoreScraper()
-    t_list = scraper.get_tournament_list(Tours.wta)
-    print(t_list)
-    ao_matches = scraper.parse_tournament(t_list['Australian Open'], 2018)
-    print(ao_matches)
-    exit()
-    for year in sorted(scraper.season_ids.keys(), reverse=True):
+    to_scrape = [x for x in scraper.season_ids.keys() if x[1] == Tours.wta]
+    for year, t_type in sorted(to_scrape, key=lambda x: x[0], reverse=True):
         logger.debug('Scraping year {}'.format(year))
-        scraper.scrape_year(year, t_type=Tours.wta)
+        scraper.scrape_year(year, t_type=t_type)
         logger.debug('Done scraping year {}'.format(year))
