@@ -209,7 +209,8 @@ class SofaScoreScraper(object):
         logger.debug('Fetching tournament list...')
         lookup = self.parse_tournament_html(full_url, t_type)
         logger.debug('Manually adding Montreal.')
-        lookup['Montreal'] = '/tournament/tennis/atp/montreal/2390'
+        if t_type == Tours.atp:
+            lookup['Montreal'] = '/tournament/tennis/atp/montreal/2390'
         logger.debug('Fetched tournament list.')
         return lookup
 
@@ -485,7 +486,7 @@ class SofaScoreScraper(object):
 
         all_matches = list()
 
-        t_list = scraper.get_tournament_list()
+        t_list = scraper.get_tournament_list(t_type=t_type)
 
         for t in tqdm(t_list.items()):
 
@@ -515,8 +516,12 @@ if __name__ == '__main__':
     from tqdm import tqdm
 
     scraper = SofaScoreScraper()
-    t_list = scraper.get_tournament_list()
+    t_list = scraper.get_tournament_list(Tours.wta)
+    print(t_list)
+    ao_matches = scraper.parse_tournament(t_list['Australian Open'], 2018)
+    print(ao_matches)
+    exit()
     for year in sorted(scraper.season_ids.keys(), reverse=True):
         logger.debug('Scraping year {}'.format(year))
-        scraper.scrape_year(year, t_type=Tours.atp)
+        scraper.scrape_year(year, t_type=Tours.wta)
         logger.debug('Done scraping year {}'.format(year))
