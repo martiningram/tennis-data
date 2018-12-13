@@ -14,6 +14,7 @@ from tdata.scrapers.utils import retry, fetch_logger
 
 logger = fetch_logger(__name__, 'matchstat_log.log')
 
+
 class ScrapingException(Exception):
     pass
 
@@ -497,7 +498,7 @@ if __name__ == '__main__':
 
     scraper = MatchStatScraper()
 
-    scraper.update(t_type='wta')
+    scraper.update(t_type='atp')
 
     exit()
 

@@ -1,5 +1,4 @@
 import os
-import json
 from pathlib import Path
 from datetime import datetime
 
@@ -12,8 +11,7 @@ from tdata.datasets.match_stats import MatchStats
 from tdata.datasets.score import Score, BadFormattingException
 from tdata.enums.t_type import (Tours, is_singles, is_standard_doubles,
                                 is_mixed_doubles)
-from tdata.scrapers.utils import (load_json_url, fetch_logger, prettify_json,
-                                  load_html_page)
+from tdata.scrapers.utils import (load_json_url, fetch_logger, load_html_page)
 from tdata.utils.utils import load_cached_json, save_to_cache, is_cached
 
 
@@ -107,7 +105,7 @@ class SofaScoreScraper(object):
 
         wta_ids = atp_season_ids.copy()
         wta_ids.update(wta_changes)
-        wta_ids = {(x, Tours.wta): y for x,y in wta_ids.items()}
+        wta_ids = {(x, Tours.wta): y for x, y in wta_ids.items()}
 
         season_ids.update(wta_ids)
 
@@ -252,7 +250,10 @@ class SofaScoreScraper(object):
 
     def parse_tournament_json(self, json_data):
 
-        tournament_name = json_data['uniqueTournament']['name']
+        try:
+            tournament_name = json_data['uniqueTournament']['name']
+        except KeyError:
+            raise IncompleteException()
 
         surface = self.find_surface(json_data)
         end_date = json_data['tournamentInfo']['endDate']
@@ -372,8 +373,8 @@ class SofaScoreScraper(object):
             home = event_details['homeTeam']
             away = event_details['awayTeam']
 
-            # TODO: This seems to be an abbreviated name. Maybe get the full name
-            # from elsewhere.
+            # TODO: This seems to be an abbreviated name. Maybe get the full
+            # name from elsewhere.
             home_name = unidecode(home['name'])
             away_name = unidecode(away['name'])
 
@@ -381,7 +382,8 @@ class SofaScoreScraper(object):
             home_won = event_details['winnerCode'] == 1
             winner = home_name if home_won else away_name
             loser = home_name if not home_won else away_name
-            match_date = datetime.fromtimestamp(event_details['startTimestamp'])
+            match_date = datetime.fromtimestamp(
+                event_details['startTimestamp'])
 
             # Extract the score
             away_score = event_details['awayScore']
@@ -395,8 +397,8 @@ class SofaScoreScraper(object):
             raise IncompleteException()
 
         try:
-            score = SofaScoreScraper.to_score(winner_score, loser_score, winner,
-                                              loser)
+            score = SofaScoreScraper.to_score(winner_score, loser_score,
+                                              winner, loser)
         except BadFormattingException:
             logger.debug('Failed to parse score in match {}.'.format(
                 event_details['id']))
@@ -428,8 +430,10 @@ class SofaScoreScraper(object):
             cur_serve_played = player_statistics[cur_id + 'ServicePointsTotal']
             cur_serve_won = player_statistics[cur_id + 'ServicePointsScored']
 
-            cur_return_played = player_statistics[cur_id + 'ReceiverPointsTotal']
-            cur_return_won = player_statistics[cur_id + 'ReceiverPointsScored']
+            cur_return_played = player_statistics[
+                cur_id + 'ReceiverPointsTotal']
+            cur_return_won = player_statistics[
+                cur_id + 'ReceiverPointsScored']
 
             cur_stats = MatchStats(
                 cur_player,
@@ -529,14 +533,16 @@ class SofaScoreScraper(object):
 
         df.to_csv(target_path)
 
+
 if __name__ == '__main__':
 
     # TODO: Skip scraping tournaments that haven't started yet.
-
+    # TODO: There is an issue with WTA before 2016. Need more season IDs.
     from tqdm import tqdm
 
     scraper = SofaScoreScraper()
-    to_scrape = [x for x in scraper.season_ids.keys() if x[1] == Tours.wta]
+    to_scrape = [x for x in scraper.season_ids.keys() if x[1] == Tours.atp
+                 and x[0] > 2017]
     for year, t_type in sorted(to_scrape, key=lambda x: x[0], reverse=True):
         logger.debug('Scraping year {}'.format(year))
         scraper.scrape_year(year, t_type=t_type)
