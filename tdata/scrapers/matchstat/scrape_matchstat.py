@@ -451,7 +451,8 @@ class MatchStatScraper(object):
         cache = pd.read_csv(cache_file, index_col=0)
 
         # If Davis Cup: likely up to date (not crucial if not as few matches)
-        dc_or_fc = 'DC WG' in cache_file or 'FC WG' in cache_file
+        dc_or_fc = ('DC WG' in cache_file or 'FC WG' in cache_file
+                    or '- DC -' in cache_file or '- FC - ' in cache_file)
         if dc_or_fc:
             return True
 
@@ -466,7 +467,7 @@ class MatchStatScraper(object):
 
         return has_final
 
-    def update(self, t_type='atp'):
+    def update(self, t_type='atp', start_year=None):
 
         # Find most recent year csv
         csvs = glob.glob('{}/*{}.csv'.format(self.data_path, t_type))
@@ -480,13 +481,16 @@ class MatchStatScraper(object):
         else:
             most_recent = max(years)
 
-        logger.info('Updating from {} onwards.'.format(most_recent))
+        if start_year is None:
+            start_year = most_recent
+
+        logger.info('Updating from {} onwards.'.format(start_year))
 
         # Find current year:
         cur_year = date.today().year
 
         # Add one for range to work
-        for year in range(most_recent, cur_year + 1):
+        for year in range(start_year, cur_year + 1):
 
             all_data = self.scrape_all(year, t_type)
             all_data.to_csv(
@@ -499,6 +503,7 @@ if __name__ == '__main__':
     scraper = MatchStatScraper()
 
     scraper.update(t_type='atp')
+    scraper.update(t_type='wta')
 
     exit()
 

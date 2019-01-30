@@ -11,7 +11,7 @@ from tdata.datasets.match_stats import MatchStats
 class MatchStatDataset(Dataset):
 
     def __init__(self, t_type='atp', stat_matches_only=True,
-                 min_year=None, drop_qual=True):
+                 min_year=None, drop_qual=True, drop_ret_and_wo=True):
 
         # Import all data:
         # Find the correct directory:
@@ -43,13 +43,15 @@ class MatchStatDataset(Dataset):
             concatenated = concatenated[
                 concatenated['winner_serve_1st_attempts'] > 0]
 
-        # Drop retirements
-        concatenated = concatenated[
-            ~concatenated['score'].str.contains('Ret.')]
+        if drop_ret_and_wo:
 
-        # Drop walkovers
-        concatenated = concatenated[
-            ~concatenated['score'].str.contains('WO|,|Default')]
+            # Drop retirements
+            concatenated = concatenated[
+                ~concatenated['score'].str.contains('Ret.')]
+
+            # Drop walkovers
+            concatenated = concatenated[
+                ~concatenated['score'].str.contains('WO|,|Default')]
 
         # Drop qualifying (for now)
         if drop_qual:
@@ -61,6 +63,13 @@ class MatchStatDataset(Dataset):
             (~(concatenated['winner'].str.contains('/'))) &
             (~(concatenated['loser'].str.contains('/')))]
 
+        # Drop juniors
+        concatenated = concatenated[
+            ~concatenated['tournament_name'].str.contains('juniors')]
+
+        # NOTE: More ambivalent about wildcard playoffs. Maybe keep them in for
+        # now.
+
         # Add round number
         concatenated['round_number'] = self.make_round_number(concatenated)
 
@@ -70,6 +79,9 @@ class MatchStatDataset(Dataset):
         # Group indoor clay as clay
         concatenated['surface'] = concatenated['surface'].str.replace(
             'i clay', 'clay')
+
+        # Adjust names
+        concatenated = self.adjust_names(concatenated)
 
         stats = self.calculate_stats_df(concatenated)
 
@@ -89,6 +101,21 @@ class MatchStatDataset(Dataset):
         super(MatchStatDataset, self).__init__(start_date_is_exact=False)
 
         self.full_df = concatenated.set_index(self.df_index, drop=False)
+
+    def adjust_names(self, df):
+
+        replacement_dict = {
+            'Darya Kasatkina': 'Daria Kasatkina',
+            'Lesya Tsurenko': 'Lesia Tsurenko',
+            'Aryna Sabalenka': 'Arina Sabalenka',
+            'Alex DE Minaur': 'Alex De Minaur',
+            'Danielle Collins': 'Danielle Rose Collins'
+        }
+
+        replacement_df = df.replace({'winner': replacement_dict,
+                                     'loser': replacement_dict})
+
+        return replacement_df
 
     def make_round_number(self, df):
 
