@@ -5,6 +5,7 @@ from pathlib import Path
 from tdata.datasets.match_stats import MatchStats
 from tdata.datasets.dataset import Dataset
 from tdata.enums.t_type import Tours
+from tdata.enums.surface import Surfaces
 
 
 class OnCourtDataset(Dataset):
@@ -30,9 +31,10 @@ class OnCourtDataset(Dataset):
         tour_table = read_with_suffix('tours')
         games_table = read_with_suffix('games')
         stats_table = read_with_suffix('stat')
+        court_table = pd.read_csv(os.path.join(csv_dir, 'courts.csv'))
 
         merged = self.merge_tables(player_table, tour_table, games_table,
-                                   stats_table)
+                                   stats_table, court_table)
         merged['DATE_G'] = pd.to_datetime(merged['DATE_G'])
         merged = merged.rename(columns={'DATE_G': 'start_date',
                                         'RESULT_G': 'score'})
@@ -40,6 +42,10 @@ class OnCourtDataset(Dataset):
 
         # TODO: Replace the round numbers with the enum values
         self.df = merged.sort_values('start_date')
+
+        # We don't want exhibitions
+        self.df = self.df[~self.df['tournament_name'].str.contains(
+            'Hopman|Mubadala')]
 
         super(OnCourtDataset, self).__init__(start_date_is_exact=True)
 
@@ -80,7 +86,15 @@ class OnCourtDataset(Dataset):
 
         return self.df
 
-    def merge_tables(self, player_table, tour_table, games_table, stats_table):
+    def merge_tables(self, player_table, tour_table, games_table, stats_table,
+                     court_table):
+
+        court_mapping = {1: Surfaces.hard,
+                         2: Surfaces.clay,
+                         3: Surfaces.indoor_hard,
+                         4: Surfaces.carpet,
+                         5: Surfaces.grass,
+                         6: Surfaces.acrylic}
 
         player_lookup = {row.ID_P: row.NAME_P for row in
                          player_table.itertuples()}
@@ -88,11 +102,16 @@ class OnCourtDataset(Dataset):
                              tour_table.itertuples()}
         t_rank_lookup = {row.ID_T: row.RANK_T for row in
                          tour_table.itertuples()}
+        t_court_lookup = {row.ID_T: court_mapping[row.ID_C_T] for row in
+                          tour_table.itertuples()}
 
         with_date = games_table.dropna()
 
         with_date.loc[:, 'tournament_rank'] = [
             t_rank_lookup[row.ID_T_G] for row in with_date.itertuples()]
+
+        with_date.loc[:, 'surface'] = [
+            t_court_lookup[row.ID_T_G].name for row in with_date.itertuples()]
 
         if self.drop_challengers:
 

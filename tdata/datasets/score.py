@@ -10,12 +10,21 @@ class Score(object):
 
     def __init__(self, string_score, winner, loser):
 
+        # This will be set if required
+        self.is_retirement = False
+
         self.winner = winner
         self.loser = loser
         self.string_score = string_score
 
         self.sets = self.parse_string_score(string_score)
-        self.bo5 = self.find_bo5(self.sets)
+
+        # TODO: This may come back to bite. Maybe find another way; e.g. just
+        # pass best of five rather than trying to infer it.
+        if not self.is_retirement:
+            self.bo5 = self.find_bo5(self.sets)
+        else:
+            self.bo5 = None
 
     def find_winner_loser_names(self, row):
 
@@ -62,6 +71,11 @@ class Score(object):
         sets = string_score.split(' ')
 
         for cur_set in sets:
+
+            if cur_set in ['ret.', 'ret', 'Ret', 'Ret.', 'w/o']:
+                # This was a retirement.
+                self.is_retirement = True
+                continue
 
             # Split on hyphen to find games:
             games = cur_set.split('-')
