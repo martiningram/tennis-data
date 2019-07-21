@@ -43,9 +43,23 @@ class OnCourtDataset(Dataset):
         # TODO: Replace the round numbers with the enum values
         self.df = merged.sort_values('start_date')
 
+        old_size = self.df.shape[0]
+
         # We don't want exhibitions
         self.df = self.df[~self.df['tournament_name'].str.contains(
             'Hopman|Mubadala')]
+
+        self.df['year'] = self.df['start_date'].dt.year
+
+        # Drop duplicates
+        self.df = self.df.drop_duplicates(
+            subset=['winner', 'loser', 'round', 'tournament_name', 'year'])
+
+        new_size = self.df.shape[0]
+
+        if old_size - new_size > 10:
+            print(f'Warning: dropping duplicates reduced size from {old_size}'
+                  f' to {new_size}.')
 
         super(OnCourtDataset, self).__init__(start_date_is_exact=True)
 
@@ -134,6 +148,18 @@ class OnCourtDataset(Dataset):
             'ID_T_G': 'ID_T',
             'ID_R_G': 'ID_R'
         })
+
+        previous_rows = stats_table.shape[0]
+
+        # Drop duplicates on the stats table
+        stats_table = stats_table.drop_duplicates(
+            subset=['ID1', 'ID2', 'ID_T', 'ID_R'])
+
+        rows_after_dropping_duplicates = stats_table.shape[0]
+
+        if previous_rows - rows_after_dropping_duplicates > 10:
+            print(f'Warning: {previous_rows - rows_after_dropping_duplicates}'
+                  f' have been dropped.')
 
         with_date = with_date.merge(stats_table, validate='one_to_one',
                                     on=['ID1', 'ID2', 'ID_T', 'ID_R'],

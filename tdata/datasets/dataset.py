@@ -250,11 +250,13 @@ class Dataset(object):
             try:
                 score = Score(row['score'], row['winner'], row['loser'])
             except BadFormattingException:
+                print("{} is bad formatting. Skipping.".format(row['score']))
                 continue
 
             # Must have at least two sets
-            if len(score.sets) < 2:
-                continue
+            # Dropping this requirement for now
+            # if len(score.sets) < 2:
+            #     continue
 
             if 'surface' not in row:
                 cur_surface = None
