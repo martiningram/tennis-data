@@ -13,13 +13,14 @@ class OnCourtDataset(Dataset):
     # TODO: Maybe switch over to SQL.
 
     def __init__(self, t_type=Tours.atp, drop_challengers=True,
-                 drop_qualifying=True):
+                 drop_qualifying=True, drop_doubles=True):
 
         exec_dir = Path(os.path.abspath(__file__)).parents[2]
 
         self.t_type = t_type
         self.drop_challengers = drop_challengers
         self.drop_qualifying = drop_qualifying
+        self.drop_doubles = drop_doubles
 
         csv_dir = os.path.join(str(exec_dir), 'data', 'oncourt')
 
@@ -47,7 +48,7 @@ class OnCourtDataset(Dataset):
 
         # We don't want exhibitions
         self.df = self.df[~self.df['tournament_name'].str.contains(
-            'Hopman|Mubadala')]
+            'Hopman|Mubadala World Tennis')]
 
         self.df['year'] = self.df['start_date'].dt.year
 
@@ -110,10 +111,17 @@ class OnCourtDataset(Dataset):
                          5: Surfaces.grass,
                          6: Surfaces.acrylic}
 
+        # TODO: This is not very good. Find a better way!
+        # Maybe merge somehow. This is terrible.
+        # TODO: Maybe add prize money (and transform it)
         player_lookup = {row.ID_P: row.NAME_P for row in
                          player_table.itertuples()}
+        player_nationality_lookup = {row.ID_P: row.COUNTRY_P for row in
+                                     player_table.itertuples()}
         tournament_lookup = {row.ID_T: row.NAME_T for row in
                              tour_table.itertuples()}
+        tournament_nationality_lookup = {row.ID_T: row.COUNTRY_T for row in
+                                         tour_table.itertuples()}
         t_rank_lookup = {row.ID_T: row.RANK_T for row in
                          tour_table.itertuples()}
         t_court_lookup = {row.ID_T: court_mapping[row.ID_C_T] for row in
@@ -123,6 +131,18 @@ class OnCourtDataset(Dataset):
 
         with_date.loc[:, 'tournament_rank'] = [
             t_rank_lookup[row.ID_T_G] for row in with_date.itertuples()]
+
+        with_date.loc[:, 'winner_nationality'] = [
+            player_nationality_lookup[row.ID1_G] for row in
+            with_date.itertuples()]
+
+        with_date.loc[:, 'loser_nationality'] = [
+            player_nationality_lookup[row.ID2_G] for row in
+            with_date.itertuples()]
+
+        with_date.loc[:, 'tournament_country'] = [
+            tournament_nationality_lookup[row.ID_T_G] for row in
+            with_date.itertuples()]
 
         with_date.loc[:, 'surface'] = [
             t_court_lookup[row.ID_T_G].name for row in with_date.itertuples()]
@@ -139,7 +159,8 @@ class OnCourtDataset(Dataset):
             tournament_lookup[row.ID_T_G] for row in with_date.itertuples()]
 
         # No doubles
-        with_date = with_date[~with_date['winner'].str.contains('/')]
+        if self.drop_doubles:
+            with_date = with_date[~with_date['winner'].str.contains('/')]
 
         # Try to merge into the stats table
         with_date = with_date.rename(columns={
