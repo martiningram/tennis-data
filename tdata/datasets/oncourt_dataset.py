@@ -111,6 +111,8 @@ class OnCourtDataset(Dataset):
                          5: Surfaces.grass,
                          6: Surfaces.acrylic}
 
+        player_table['DATE_P'] = pd.to_datetime(player_table['DATE_P'])
+
         # TODO: This is not very good. Find a better way!
         # Maybe merge somehow. This is terrible.
         # TODO: Maybe add prize money (and transform it)
@@ -126,6 +128,8 @@ class OnCourtDataset(Dataset):
                          tour_table.itertuples()}
         t_court_lookup = {row.ID_T: court_mapping[row.ID_C_T] for row in
                           tour_table.itertuples()}
+        player_birthdate_lookup = {
+            row.ID_P: row.DATE_P for row in player_table.itertuples()}
 
         with_date = games_table.dropna()
 
@@ -138,6 +142,14 @@ class OnCourtDataset(Dataset):
 
         with_date.loc[:, 'loser_nationality'] = [
             player_nationality_lookup[row.ID2_G] for row in
+            with_date.itertuples()]
+
+        with_date.loc[:, 'winner_birthdate'] = [
+            player_birthdate_lookup[row.ID1_G] for row in
+            with_date.itertuples()]
+
+        with_date.loc[:, 'loser_birthdate'] = [
+            player_birthdate_lookup[row.ID2_G] for row in
             with_date.itertuples()]
 
         with_date.loc[:, 'tournament_country'] = [
