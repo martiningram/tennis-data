@@ -200,7 +200,7 @@ class OnCourtDataset(Dataset):
 
         keep_qualifying = not self.drop_qualifying
 
-        rounds_to_keep = [4, 5, 6, 7, 9, 10, 12]
+        rounds_to_keep = [4, 5, 6, 7, 8, 9, 10, 12]
 
         # TODO: There's also stuff like pre-qualifying and bronze and so on.
         # Maybe think about what to do about these; dropping for now.
@@ -216,3 +216,41 @@ class OnCourtDataset(Dataset):
             'junior|Junior|wildcard|Wildcard')]
 
         return with_date
+
+
+# A number of utility functions. These _could_ be made static functions.
+def is_slam(tournament_column):
+
+    return tournament_column.str.contains(
+        'Australian Open|French Open|Wimbledon|U.S. Open')
+
+
+def was_retirement(score_column):
+
+    return score_column.str.contains('ret|w/o')
+
+
+def calculate_spw(oncourt_df):
+
+    rpw_1 = oncourt_df['RPW_1']
+    rpwof_1 = oncourt_df['RPWOF_1']
+
+    rpw_2 = oncourt_df['RPW_2']
+    rpwof_2 = oncourt_df['RPWOF_2']
+
+    # Number of serve points won by 2 is the total number of return points for
+    # 1 minus the ones they won.
+    spw_2 = rpwof_1 - rpw_1
+    spw_1 = rpwof_2 - rpw_2
+
+    sp_played_1 = rpwof_2
+    sp_played_2 = rpwof_1
+
+    return spw_1, sp_played_1, spw_2, sp_played_2
+
+
+def calculate_sp_proportion(oncourt_df):
+
+    spw_1, sp_played_1, spw_2, sp_played_2 = calculate_spw(oncourt_df)
+
+    return spw_1 / sp_played_1, spw_2 / sp_played_2
