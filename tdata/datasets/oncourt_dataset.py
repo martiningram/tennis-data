@@ -1,7 +1,9 @@
 import os
+import numpy as np
 import pandas as pd
 from pathlib import Path
 
+from collections import defaultdict
 from tdata.datasets.match_stats import MatchStats
 from tdata.datasets.dataset import Dataset
 from tdata.enums.t_type import Tours
@@ -224,7 +226,20 @@ class OnCourtDataset(Dataset):
         if previous_rows - rows_after_dropping_duplicates > 10:
             print(
                 f"Warning: {previous_rows - rows_after_dropping_duplicates}"
-                f" have been dropped."
+                f" have been dropped from the stats_table."
+            )
+
+        # Drop duplicates on the other table
+        previous_rows = with_date.shape[0]
+
+        with_date = with_date.drop_duplicates(subset=["ID1", "ID2", "ID_T", "ID_R"])
+
+        rows_after_dropping_duplicates = with_date.shape[0]
+
+        if previous_rows - rows_after_dropping_duplicates > 10:
+            print(
+                f"Warning: {previous_rows - rows_after_dropping_duplicates}"
+                f" have been dropped from the with_date table."
             )
 
         with_date = with_date.merge(
@@ -244,8 +259,23 @@ class OnCourtDataset(Dataset):
 
             rounds_to_keep += [1, 2, 3]
 
+        round_names = {
+            4: "R128",
+            5: "R64",
+            6: "R32",
+            7: "R16",
+            8: "RR",
+            9: "QF",
+            10: "SF",
+            12: "F",
+        }
+
         with_date = with_date.rename(columns={"ID_R": "round"})
         with_date = with_date[with_date["round"].isin(rounds_to_keep)]
+
+        with_date["round_name"] = [
+            round_names.get(row.round, None) for row in with_date.itertuples()
+        ]
 
         # Discard juniors & wildcard events
         with_date = with_date[
@@ -337,3 +367,48 @@ def calculate_sp_proportion(oncourt_df):
     spw_1, sp_played_1, spw_2, sp_played_2 = calculate_spw(oncourt_df)
 
     return spw_1 / sp_played_1, spw_2 / sp_played_2
+
+
+def fetch_last_ranking_and_last_seen(df):
+
+    last_ranking = defaultdict(lambda: np.nan)
+    last_seen = dict()
+
+    results = list()
+
+    for row in df.itertuples():
+
+        winner_last_seen = last_seen.get(row.winner, row.start_date)
+        loser_last_seen = last_seen.get(row.loser, row.start_date)
+
+        winner_last_ranking = last_ranking[row.winner]
+        loser_last_ranking = last_ranking[row.loser]
+
+        winner_days_since = (row.start_date - winner_last_seen).days
+        loser_days_since = (row.start_date - loser_last_seen).days
+
+        results.append(
+            {
+                "winner_last_ranking": winner_last_ranking,
+                "loser_last_ranking": loser_last_ranking,
+                "winner_days_since": winner_days_since,
+                "loser_days_since": loser_days_since,
+            }
+        )
+
+        last_seen[row.winner] = row.start_date
+        last_seen[row.loser] = row.start_date
+
+        # Only update ranking if there is a new one
+        last_ranking[row.winner] = (
+            row.winner_ranking
+            if not np.isnan(row.winner_ranking)
+            else winner_last_ranking
+        )
+        last_ranking[row.loser] = (
+            row.loser_ranking if not np.isnan(row.loser_ranking) else loser_last_ranking
+        )
+
+    results = pd.DataFrame(results, index=df.index)
+
+    return results
