@@ -42,6 +42,7 @@ class OnCourtDataset(Dataset):
         stats_table = read_with_suffix("stat")
         court_table = pd.read_csv(os.path.join(csv_dir, "courts.csv"))
         rankings_table = read_with_suffix("ratings")
+        odds_table = read_with_suffix('odds')
 
         merged = self.merge_tables(
             player_table,
@@ -50,6 +51,7 @@ class OnCourtDataset(Dataset):
             stats_table,
             court_table,
             rankings_table,
+            odds_table
         )
         merged["DATE_G"] = pd.to_datetime(merged["DATE_G"])
         merged = merged.rename(columns={"DATE_G": "start_date", "RESULT_G": "score"})
@@ -121,6 +123,43 @@ class OnCourtDataset(Dataset):
 
         return self.df
 
+    @staticmethod
+    def merge_odds_and_games(odds_table, games_table):
+
+        lookup = odds_table.set_index(
+            ['ID1_O', 'ID2_O', 'ID_T_O', 'ID_R_O', 'ID_B_O'])
+        lookup = lookup.to_dict()
+
+        all_odds = list()
+
+        for sample_row in games_table.itertuples():
+
+            winner_odds, loser_odds = None, None
+
+            try:
+                index = (sample_row.ID1_G, sample_row.ID2_G, sample_row.ID_T_G,
+                         sample_row.ID_R_G, 2)
+                winner_odds = lookup['K1'][index]
+                loser_odds = lookup['K2'][index]
+            except KeyError:
+                try:
+                    index = (sample_row.ID2_G, sample_row.ID1_G,
+                             sample_row.ID_T_G, sample_row.ID_R_G, 2)
+                    winner_odds = lookup['K2'][index]
+                    loser_odds = lookup['K1'][index]
+                except KeyError:
+                    pass
+
+            all_odds.append({'winner_odds': winner_odds,
+                             'loser_odds': loser_odds})
+
+        all_odds = pd.DataFrame(all_odds, index=games_table.index)
+
+        games_table['winner_odds'] = all_odds['winner_odds']
+        games_table['loser_odds'] = all_odds['loser_odds']
+
+        return games_table
+
     def merge_tables(
         self,
         player_table,
@@ -129,6 +168,7 @@ class OnCourtDataset(Dataset):
         stats_table,
         court_table,
         rankings_table,
+        odds_table
     ):
 
         court_mapping = {
@@ -164,6 +204,8 @@ class OnCourtDataset(Dataset):
         }
 
         with_date = games_table.dropna()
+
+        with_date = self.merge_odds_and_games(odds_table, games_table)
 
         with_date.loc[:, "tournament_rank"] = [
             t_rank_lookup[row.ID_T_G] for row in with_date.itertuples()
