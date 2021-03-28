@@ -8,6 +8,7 @@ from tdata.datasets.match_stats import MatchStats
 from tdata.datasets.dataset import Dataset
 from tdata.enums.t_type import Tours
 from tdata.enums.surface import Surfaces
+from tqdm import tqdm
 
 
 class OnCourtDataset(Dataset):
@@ -42,7 +43,8 @@ class OnCourtDataset(Dataset):
         stats_table = read_with_suffix("stat")
         court_table = pd.read_csv(os.path.join(csv_dir, "courts.csv"))
         rankings_table = read_with_suffix("ratings")
-        odds_table = read_with_suffix('odds')
+        odds_table = read_with_suffix("odds")
+        seed_table = read_with_suffix("seed")
 
         merged = self.merge_tables(
             player_table,
@@ -51,7 +53,8 @@ class OnCourtDataset(Dataset):
             stats_table,
             court_table,
             rankings_table,
-            odds_table
+            odds_table,
+            seed_table,
         )
         merged["DATE_G"] = pd.to_datetime(merged["DATE_G"])
         merged = merged.rename(columns={"DATE_G": "start_date", "RESULT_G": "score"})
@@ -126,8 +129,7 @@ class OnCourtDataset(Dataset):
     @staticmethod
     def merge_odds_and_games(odds_table, games_table):
 
-        lookup = odds_table.set_index(
-            ['ID1_O', 'ID2_O', 'ID_T_O', 'ID_R_O', 'ID_B_O'])
+        lookup = odds_table.set_index(["ID1_O", "ID2_O", "ID_T_O", "ID_R_O", "ID_B_O"])
         lookup = lookup.to_dict()
 
         all_odds = list()
@@ -137,26 +139,35 @@ class OnCourtDataset(Dataset):
             winner_odds, loser_odds = None, None
 
             try:
-                index = (sample_row.ID1_G, sample_row.ID2_G, sample_row.ID_T_G,
-                         sample_row.ID_R_G, 2)
-                winner_odds = lookup['K1'][index]
-                loser_odds = lookup['K2'][index]
+                index = (
+                    sample_row.ID1_G,
+                    sample_row.ID2_G,
+                    sample_row.ID_T_G,
+                    sample_row.ID_R_G,
+                    2,
+                )
+                winner_odds = lookup["K1"][index]
+                loser_odds = lookup["K2"][index]
             except KeyError:
                 try:
-                    index = (sample_row.ID2_G, sample_row.ID1_G,
-                             sample_row.ID_T_G, sample_row.ID_R_G, 2)
-                    winner_odds = lookup['K2'][index]
-                    loser_odds = lookup['K1'][index]
+                    index = (
+                        sample_row.ID2_G,
+                        sample_row.ID1_G,
+                        sample_row.ID_T_G,
+                        sample_row.ID_R_G,
+                        2,
+                    )
+                    winner_odds = lookup["K2"][index]
+                    loser_odds = lookup["K1"][index]
                 except KeyError:
                     pass
 
-            all_odds.append({'winner_odds': winner_odds,
-                             'loser_odds': loser_odds})
+            all_odds.append({"winner_odds": winner_odds, "loser_odds": loser_odds})
 
         all_odds = pd.DataFrame(all_odds, index=games_table.index)
 
-        games_table['winner_odds'] = all_odds['winner_odds']
-        games_table['loser_odds'] = all_odds['loser_odds']
+        games_table["winner_odds"] = all_odds["winner_odds"]
+        games_table["loser_odds"] = all_odds["loser_odds"]
 
         return games_table
 
@@ -168,7 +179,8 @@ class OnCourtDataset(Dataset):
         stats_table,
         court_table,
         rankings_table,
-        odds_table
+        odds_table,
+        seed_table,
     ):
 
         court_mapping = {
@@ -203,9 +215,21 @@ class OnCourtDataset(Dataset):
             row.ID_P: row.DATE_P for row in player_table.itertuples()
         }
 
+        seed_lookup = seed_table.set_index(["ID_P_S", "ID_T_S"]).to_dict()["SEEDING"]
+
         with_date = games_table.dropna()
 
         with_date = self.merge_odds_and_games(odds_table, games_table)
+
+        with_date["winner_seed"] = [
+            seed_lookup.get((row.ID1_G, row.ID_T_G), None)
+            for row in with_date.itertuples()
+        ]
+
+        with_date["loser_seed"] = [
+            seed_lookup.get((row.ID2_G, row.ID_T_G), None)
+            for row in with_date.itertuples()
+        ]
 
         with_date.loc[:, "tournament_rank"] = [
             t_rank_lookup[row.ID_T_G] for row in with_date.itertuples()
@@ -454,3 +478,45 @@ def fetch_last_ranking_and_last_seen(df):
     results = pd.DataFrame(results, index=df.index)
 
     return results
+
+
+def compute_last_seen(df, show_progress=False, months_to_ignore=[11, 12]):
+
+    last_seen = dict()
+    gaps = list()
+
+    iterator = tqdm(df.itertuples()) if show_progress else df.itertuples()
+
+    for row in iterator:
+
+        winner_last_seen = last_seen.get(row.winner, None)
+        loser_last_seen = last_seen.get(row.loser, None)
+
+        winner_exempt = (
+            False
+            if winner_last_seen is None
+            else (winner_last_seen.month in months_to_ignore)
+        )
+        loser_exempt = (
+            False
+            if loser_last_seen is None
+            else (loser_last_seen.month in months_to_ignore)
+        )
+
+        winner_gap = (
+            None
+            if winner_last_seen is None or winner_exempt
+            else (row.start_date - winner_last_seen).days
+        )
+        loser_gap = (
+            None
+            if loser_last_seen is None or loser_exempt
+            else (row.start_date - loser_last_seen).days
+        )
+
+        last_seen[row.winner] = row.start_date
+        last_seen[row.loser] = row.start_date
+
+        gaps.append({"winner_days_since": winner_gap, "loser_days_since": loser_gap})
+
+    return pd.DataFrame(gaps, index=df.index), last_seen

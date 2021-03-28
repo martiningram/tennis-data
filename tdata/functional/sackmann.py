@@ -105,3 +105,28 @@ def compute_game_margins(string_scores):
     )
 
     return margins
+
+
+def get_player_info(sackmann_dir, tour="atp"):
+
+    player_info = pd.read_csv(
+        join(sackmann_dir, f"{tour}_players.csv"),
+        header=None,
+        names=[
+            "ID",
+            "First Name",
+            "Last Name",
+            "Handedness",
+            "Birthdate",
+            "Nationality",
+        ],
+    )
+
+    player_info = player_info.dropna()
+
+    str_date = player_info["Birthdate"].astype(int).astype(str)
+    str_date = pd.to_datetime(str_date, format="%Y%m%d")
+
+    player_info["Birthdate"] = str_date
+
+    return player_info
