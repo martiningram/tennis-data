@@ -236,19 +236,23 @@ class OnCourtDataset(Dataset):
         ]
 
         with_date.loc[:, "winner_nationality"] = [
-            player_nationality_lookup[row.ID1_G] for row in with_date.itertuples()
+            player_nationality_lookup.get(row.ID1_G, None)
+            for row in with_date.itertuples()
         ]
 
         with_date.loc[:, "loser_nationality"] = [
-            player_nationality_lookup[row.ID2_G] for row in with_date.itertuples()
+            player_nationality_lookup.get(row.ID2_G, None)
+            for row in with_date.itertuples()
         ]
 
         with_date.loc[:, "winner_birthdate"] = [
-            player_birthdate_lookup[row.ID1_G] for row in with_date.itertuples()
+            player_birthdate_lookup.get(row.ID1_G, None)
+            for row in with_date.itertuples()
         ]
 
         with_date.loc[:, "loser_birthdate"] = [
-            player_birthdate_lookup[row.ID2_G] for row in with_date.itertuples()
+            player_birthdate_lookup.get(row.ID2_G, None)
+            for row in with_date.itertuples()
         ]
 
         with_date.loc[:, "tournament_country"] = [
@@ -264,11 +268,14 @@ class OnCourtDataset(Dataset):
             with_date = with_date[with_date["tournament_rank"] > 1]
 
         with_date.loc[:, "winner"] = [
-            player_lookup[row.ID1_G] for row in with_date.itertuples()
+            player_lookup.get(row.ID1_G, None) for row in with_date.itertuples()
         ]
         with_date.loc[:, "loser"] = [
-            player_lookup[row.ID2_G] for row in with_date.itertuples()
+            player_lookup.get(row.ID2_G, None) for row in with_date.itertuples()
         ]
+
+        with_date = with_date.dropna(subset=["winner", "loser"])
+
         with_date.loc[:, "tournament_name"] = [
             tournament_lookup[row.ID_T_G] for row in with_date.itertuples()
         ]
